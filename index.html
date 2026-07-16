@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Rodada Multidisciplinar UTI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F7F8; --surface:#FFFFFF; --ink:#1F2937; --muted:#647079; --line:#E2E7EA;
+    --teal:#0F6E6E; --teal-dark:#0B5555; --teal-tint:#E4F1F0;
+    --amber:#B45309; --amber-tint:#FDF3E3; --danger:#B3261E; --danger-tint:#FBEAE9;
+    --green:#2F7D5A; --green-tint:#E7F3EC; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13.5px;line-height:1.4;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app{max-width:1600px;margin:0 auto;padding:20px 20px 60px;}
+
+  .topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:38px;height:38px;border-radius:9px;background:var(--teal);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+  .brand h1{font-size:17px;margin:0;font-weight:700;}
+  .brand .sub{font-size:12px;color:var(--muted);margin-top:1px;}
+
+  button{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;transition:.12s ease;}
+  button:hover{border-color:var(--teal);color:var(--teal-dark);}
+  button:focus-visible{outline:2px solid var(--teal);outline-offset:1px;}
+  button.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+  button.primary:hover{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff;}
+  button.ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  button.ghost:hover{color:var(--teal-dark);}
+  button.danger-outline{border-color:var(--danger);color:var(--danger);}
+  button.danger-outline:hover{background:var(--danger-tint);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;min-width:120px;flex:1;}
+  .stat .n{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .stat.warn .n{color:var(--amber);} .stat.alert .n{color:var(--danger);} .stat.ok .n{color:var(--teal);}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+  .tab{padding:9px 4px;margin-right:18px;background:none;border:none;border-bottom:2px solid transparent;border-radius:0;font-weight:600;color:var(--muted);}
+  .tab.active{color:var(--teal-dark);border-bottom-color:var(--teal);}
+
+  .archive-controls{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .archive-controls input[type=date]{font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);}
+
+  .table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:auto;}
+  table{width:100%;border-collapse:collapse;min-width:1900px;}
+  thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:9px 8px;border-bottom:1px solid var(--line);background:#FAFBFC;white-space:nowrap;position:sticky;top:0;}
+  tbody td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFCFC;}
+
+  .cell-input,.cell-textarea,.cell-select{width:100%;font-family:inherit;font-size:12.5px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 5px;color:var(--ink);resize:vertical;}
+  .cell-input:hover,.cell-textarea:hover,.cell-select:hover{border-color:var(--line);}
+  .cell-input:focus,.cell-textarea:focus,.cell-select:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px var(--teal-tint);}
+  .cell-textarea{min-height:40px;}
+  .name-cell{min-width:150px;}
+  .name-cell input.nome{font-weight:600;font-size:13px;}
+  .name-cell input.leito{margin-top:2px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+  .name-cell input.data-visita{margin-top:2px;font-size:11px;color:var(--muted);}
+
+  .stale-tag{display:inline-block;margin-top:3px;font-size:10px;padding:1px 6px;border-radius:20px;background:var(--amber-tint);color:var(--amber);font-weight:600;}
+  .fresh-tag{display:inline-block;margin-top:3px;font-size:10px;padding:1px 6px;border-radius:20px;background:var(--green-tint);color:var(--green);font-weight:600;}
+  .alert-tag{display:inline-block;margin-top:3px;font-size:10px;padding:1px 7px;border-radius:20px;background:#FF3B30;color:#fff;font-weight:800;box-shadow:0 0 0 2px rgba(255,59,48,.25);}
+
+  .dva-col{min-width:170px;}
+  .chip-list{display:flex;flex-wrap:wrap;gap:5px;}
+  .chip{font-size:11px;padding:4px 9px;border-radius:20px;border:1.5px solid var(--line);background:#fff;color:var(--muted);font-weight:600;cursor:pointer;transition:.1s ease;}
+  .chip:hover{border-color:var(--teal);color:var(--teal-dark);}
+  .chip.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .chip-static{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;background:var(--teal-tint);color:var(--teal-dark);font-weight:600;margin:0 4px 4px 0;}
+
+  .cluster{min-width:170px;}
+  .mini-field{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;}
+  .mini-field:last-child{margin-bottom:0;}
+  .mini-field .ml{font-size:11px;color:var(--muted);flex:0 0 70px;}
+  .mini-field select, .mini-field input[type=date]{flex:1;font-size:11.5px;padding:3px 4px;border-radius:5px;border:1px solid var(--line);background:#fff;min-width:0;}
+  .mini-field select:focus, .mini-field input[type=date]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 2px var(--teal-tint);}
+  .sub-group{border-top:1px dashed var(--line);padding-top:5px;margin-top:5px;}
+  .sub-group:first-child{border-top:none;padding-top:0;margin-top:0;}
+  .sub-group-title{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:3px;letter-spacing:.3px;}
+  .dev-cluster{min-width:300px;display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;}
+  .dev-cluster .sub-group{border-top:none;padding-top:0;margin-top:0;border-left:1px dashed var(--line);padding-left:8px;}
+  .dev-cluster .sub-group:nth-child(odd){border-left:none;padding-left:0;}
+
+  .hd-col{min-width:200px;}
+  .hd-col textarea{min-height:70px;}
+  .atb-col{min-width:180px;}
+  .atb-col textarea{min-height:60px;}
+  .metas-col{min-width:190px;}
+
+  .actions-cell{display:flex;flex-direction:column;gap:6px;min-width:110px;}
+  .actions-cell button{width:100%;font-size:12px;padding:6px 8px;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+  .empty-state b{color:var(--ink);}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,26,28,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .modal{background:#fff;border-radius:14px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal h2{margin:0 0 4px;font-size:16px;}
+  .modal p.desc{margin:0 0 16px;color:var(--muted);font-size:12.5px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;}
+  .field input,.field textarea,.field select{width:100%;font-family:inherit;font-size:13.5px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-tint);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:80;opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  footer.note{margin-top:22px;font-size:11.5px;color:var(--muted);line-height:1.6;}
+  .chart-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+  .bed-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:12px;}
+  .bed-card{border-radius:10px;padding:12px;min-height:100px;}
+  .bed-card.ocupado{background:var(--teal-tint);border:1px solid var(--teal);}
+  .bed-card.vago{background:#FAFBFC;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;min-height:100px;}
+  .bed-row{display:flex;gap:6px;font-size:11px;padding:1px 0;line-height:1.35;}
+  .bed-row-label{flex:0 0 66px;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.2px;padding-top:1px;}
+  .bed-row-value{flex:1;color:var(--ink);word-break:break-word;}
+  .huddle-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .huddle-header{font-weight:700;font-size:13.5px;margin-bottom:6px;color:var(--teal-dark);}
+  .huddle-goal{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:5px 0;cursor:pointer;}
+  .huddle-goal.done{text-decoration:line-through;color:var(--muted);}
+  .huddle-goal input{margin-top:2px;}
+  .bed-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);font-weight:700;}
+  .bed-nome{font-size:13px;font-weight:700;margin:2px 0;}
+  .bed-info{font-size:11px;color:var(--muted);}
+  .chart-title{font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:10px;}
+
+  @media (max-width:900px){
+    .table-wrap{overflow-x:visible;}
+    table{min-width:0;}
+    thead{display:none;}
+    tbody td{display:block;border-bottom:none;padding:6px 4px;}
+    tbody tr{display:block;border-bottom:2px solid var(--line);padding:12px 6px;}
+    tbody td::before{content:attr(data-label);display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;font-weight:700;}
+    .actions-cell{flex-direction:row;}
+    .hd-col, .atb-col, .metas-col, .dva-col, .cluster{min-width:0;}
+    .dev-cluster{grid-template-columns:1fr;}
+    .dev-cluster .sub-group{border-left:none;padding-left:0;border-top:1px dashed var(--line);padding-top:5px;margin-top:5px;}
+    .dev-cluster .sub-group:first-child{border-top:none;padding-top:0;margin-top:0;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+<script>
+// Rede de segurança: se qualquer erro acontecer, mostra na tela em vez de deixar a página em branco.
+window.addEventListener('error', function(ev){
+  try{
+    const app = document.getElementById('app');
+    if(app && !app.dataset.errorShown){
+      app.dataset.errorShown = '1';
+      app.innerHTML = '<div style="max-width:640px;margin:60px auto;background:#fff;border:2px solid #B3261E;border-radius:14px;padding:24px;font-family:sans-serif;">'
+        + '<h1 style="font-size:17px;color:#B3261E;margin:0 0 10px;">Ocorreu um erro ao carregar o app</h1>'
+        + '<p style="color:#333;line-height:1.6;">Mensagem técnica (envie um print disso para quem está te ajudando a configurar):</p>'
+        + '<pre style="white-space:pre-wrap;background:#FBEAE9;padding:10px;border-radius:8px;font-size:12.5px;color:#7a1a15;">' + (ev.message||'erro desconhecido') + '\nArquivo: ' + (ev.filename||'-') + ' linha ' + (ev.lineno||'-') + '</pre>'
+        + '</div>';
+    }
+  }catch(e){}
+});
+</script>
+<script>
+const FIRESTORE_COLLECTION = 'uti_rounds_data';
+const LS_KEY = 'uti_firebase_config';
+
+let firebaseReady = false;
+let dbFire = null;
+
+function initFirebase(cfg){
+  firebase.initializeApp(cfg);
+  dbFire = firebase.firestore();
+  firebaseReady = true;
+  try{
+    dbFire.enablePersistence({ synchronizeTabs: true }).catch(err=>{
+      if(err.code === 'failed-precondition'){
+        console.warn('Persistência offline não pôde ser ativada: múltiplas abas sem sincronização. Tente com apenas uma aba aberta.');
+      } else if(err.code === 'unimplemented'){
+        console.warn('Este navegador não suporta o modo offline do Firestore.');
+      }
+    });
+  }catch(e){}
+}
+
+// Tenta extrair o objeto de configuração de qualquer texto colado, mesmo com
+// "import { ... } from ..." ou outros trechos de código em volta.
+function extractBalancedObject(text, anchorWord){
+  const anchorIdx = text.indexOf(anchorWord);
+  if(anchorIdx===-1) throw new Error('Não encontrei "'+anchorWord+'" no texto colado. Confira se copiou o bloco de configuração do Firebase (com apiKey, projectId, etc).');
+  const start = text.lastIndexOf('{', anchorIdx);
+  if(start===-1) throw new Error('Não encontrei o "{" de abertura da configuração.');
+  let depth = 0;
+  for(let i=start; i<text.length; i++){
+    if(text[i]==='{') depth++;
+    else if(text[i]==='}'){
+      depth--;
+      if(depth===0) return text.slice(start, i+1);
+    }
+  }
+  throw new Error('Não encontrei o "}" de fechamento da configuração.');
+}
+function parsePastedConfig(text){
+  const objText = extractBalancedObject(text, 'apiKey');
+  const cfg = new Function('return (' + objText + ')')();
+  if(!cfg || !cfg.apiKey || !cfg.projectId) throw new Error('O texto colado não parece ter "apiKey" e "projectId". Confira se copiou o bloco certo do Firebase.');
+  return cfg;
+}
+
+// ---- Camada de armazenamento (substitui o antigo window.storage do Claude) ----
+async function fsGet(key){
+  if(!firebaseReady) return null;
+  try{
+    const doc = await dbFire.collection(FIRESTORE_COLLECTION).doc(key).get();
+    if(!doc.exists) return null;
+    return { key, value: doc.data().value };
+  }catch(e){ return null; }
+}
+async function fsSet(key, value){
+  if(!firebaseReady) throw new Error('Firebase não configurado');
+  await dbFire.collection(FIRESTORE_COLLECTION).doc(key).set({
+    value, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  return { key, value };
+}
+async function fsDelete(key){
+  if(!firebaseReady) return null;
+  await dbFire.collection(FIRESTORE_COLLECTION).doc(key).delete();
+  return { key, deleted:true };
+}
+async function fsList(prefix){
+  if(!firebaseReady) return { keys: [] };
+  try{
+    const snap = await dbFire.collection(FIRESTORE_COLLECTION)
+      .where(firebase.firestore.FieldPath.documentId(), '>=', prefix)
+      .where(firebase.firestore.FieldPath.documentId(), '<', prefix + '\uf8ff')
+      .get();
+    return { keys: snap.docs.map(d=>d.id) };
+  }catch(e){ return { keys: [] }; }
+}
+// Shim com a mesma "forma" da API usada no resto do app, agora rodando no Firebase.
+window.storage = {
+  get: (key, _shared) => fsGet(key),
+  set: (key, value, _shared) => fsSet(key, value),
+  delete: (key, _shared) => fsDelete(key),
+  list: (prefix, _shared) => fsList(prefix)
+};
+
+// ---- Tela de configuração (primeira vez neste navegador/aparelho) ----
+function showConfigScreen(errorMsg){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  const box = document.createElement('div');
+  box.style.cssText = 'max-width:600px;margin:40px auto;background:#fff;border:1px solid #E2E7EA;border-radius:14px;padding:26px;font-family:Arial,sans-serif;';
+  box.innerHTML = `
+    <h1 style="font-size:18px;margin:0 0 10px;color:#1F2937;">Conectar ao Firebase</h1>
+    <p style="color:#647079;line-height:1.6;font-size:13.5px;">
+      Cole abaixo o bloco de configuração do seu projeto Firebase (copiado do console, em
+      <b>Configurações do projeto → Seus apps → Web</b>). Pode colar exatamente como aparece lá,
+      com "const firebaseConfig = {...}" e tudo — o app entende sozinho.
+    </p>
+    ${errorMsg ? `<p style="background:#FBEAE9;color:#B3261E;padding:10px 12px;border-radius:8px;font-size:12.5px;">${errorMsg}</p>` : ''}
+    <textarea id="cfgInput" rows="10" placeholder='const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  ...
+};' style="width:100%;font-family:monospace;font-size:12px;padding:10px;border-radius:8px;border:1px solid #E2E7EA;box-sizing:border-box;"></textarea>
+    <button id="cfgSaveBtn" style="margin-top:14px;padding:10px 18px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #0F6E6E;background:#0F6E6E;color:#fff;cursor:pointer;">Salvar e continuar</button>
+    <p style="color:#647079;font-size:11.5px;margin-top:14px;">
+      Isso só precisa ser feito uma vez em cada navegador/aparelho que você usar. Se ainda não criou
+      o projeto, acesse <span style="font-family:monospace;">console.firebase.google.com</span>,
+      crie um projeto grátis, ative o <b>Firestore Database</b> (modo de teste) e registre um app Web
+      para pegar essa configuração.
+    </p>`;
+  app.appendChild(box);
+  document.getElementById('cfgSaveBtn').addEventListener('click', async ()=>{
+    const text = document.getElementById('cfgInput').value;
+    try{
+      const cfg = parsePastedConfig(text);
+      initFirebase(cfg);
+      // testa a conexão de verdade antes de salvar
+      await dbFire.collection(FIRESTORE_COLLECTION).doc('_ping').set({value:'ok', updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+      localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+      boot();
+    }catch(e){
+      showConfigScreen('Não consegui conectar: ' + (e.message||e) + ' — confira se o Firestore Database já foi criado no console (Build → Firestore Database → Criar banco de dados) e tente novamente.');
+    }
+  });
+}
+</script>
+<script>
+/* =========================================================================
+   APP — não precisa editar nada abaixo desta linha
+   ========================================================================= */
+// ---------- Option sets ----------
+const DVA_DRUGS = ['Noradrenalina','Dobutamina','Vasopressina','Milrinone','Levosimendana','Tridil','Nipride','Dopamina'];
+const SEDACAO_DRUGS = ['Midazolam','Fentanil','Ketamina','Precedex','Propofol','Lidocaína','Remifentanil','Morfina'];
+const ATB_KEYWORDS = {
+  'Piperacilina-Tazobactam': ['piperacilina','tazobactam','pip/taz','pip-taz','piptazo','pipetazo','tazocin'],
+  'Meropenem': ['meropenem','mero ','meronem'],
+  'Imipenem': ['imipenem','tienam'],
+  'Ertapenem': ['ertapenem','invanz'],
+  'Cefepime': ['cefepime','cefepima','maxcef'],
+  'Cefazolina': ['cefazolina','kefazol'],
+  'Ceftriaxona': ['ceftriaxona','rocefin','ceftriax'],
+  'Ceftazidima': ['ceftazidima','fortaz'],
+  'Vancomicina': ['vancomicina','vanco','vancocina'],
+  'Teicoplanina': ['teicoplanina','targocid'],
+  'Polimixina B': ['polimixina b','polimixina','poli '],
+  'Colistina': ['colistina','colistin'],
+  'Linezolida': ['linezolida','linezolid','zyvox'],
+  'Daptomicina': ['daptomicina','cubicin'],
+  'Metronidazol': ['metronidazol','metro ','flagyl'],
+  'Ciprofloxacino': ['ciprofloxacino','cipro','ciproxin'],
+  'Levofloxacino': ['levofloxacino','levoflox','levo ','tavanic'],
+  'Ampicilina-Sulbactam': ['ampicilina/sulbactam','ampicilina-sulbactam','unasyn','sulbactam'],
+  'Ampicilina': ['ampicilina'],
+  'Amoxicilina-Clavulanato': ['amoxicilina','clavulanato','clavulin'],
+  'Oxacilina': ['oxacilina','oxa '],
+  'Penicilina Cristalina': ['penicilina cristalina','penicilina g'],
+  'Fluconazol': ['fluconazol','fluc ','zoltec'],
+  'Voriconazol': ['voriconazol','vfend'],
+  'Anfotericina B': ['anfotericina','anfo ','fungizon'],
+  'Caspofungina': ['caspofungina','cancidas'],
+  'Micafungina': ['micafungina','mycamine'],
+  'Amicacina': ['amicacina','amica'],
+  'Gentamicina': ['gentamicina','genta'],
+  'Tigeciclina': ['tigeciclina','tygacil'],
+  'Aztreonam': ['aztreonam','azactam'],
+  'Azitromicina': ['azitromicina','azitro','zitromax'],
+  'Clindamicina': ['clindamicina','clinda','dalacin'],
+  'Sulfametoxazol-Trimetoprima': ['sulfametoxazol','trimetoprima','bactrim','smx-tmp','smx/tmp']
+};
+function detectAntibioticsInText(text){
+  if(!text) return [];
+  const low = ' '+text.toLowerCase()+' ';
+  return Object.keys(ATB_KEYWORDS).filter(name => ATB_KEYWORDS[name].some(kw => low.includes(kw)));
+}
+const DIETA_OPTS = [['zero','Dieta zero'],['npt','NPT'],['enteral_meta','Enteral em meta'],['enteral_trofica','Enteral trófica'],['oral','Oral']];
+const SIMNAO_OPTS = [['sim','Sim'],['nao','Não']];
+const HIGIENE_ORAL_OPTS = [['adequada','Adequada'],['nao_adequada','Não adequada']];
+const TIPO_ALTA_OPTS = [['obito','Alta Óbito'],['alta_enfermaria','Alta Enfermaria'],['alta_domiciliar','Alta Domiciliar']];
+const REINT_OPTS = [['Precoce <48h','Sim — Precoce (menos de 48h)'],['Tardia >48h','Sim — Tardia (mais de 48h)']];
+const RASS_OPTS = ['-5','-4','-3','-2','-1','0','+1','+2','+3','+4','+5'];
+const METARASS_OPTS = [['0a-2','0 a -2'],['-3a-4','-3 a -4'],['-5','-5']];
+const SITE_CENTRAL_OPTS = [['jugular_d','Jugular D'],['jugular_e','Jugular E'],['subclavia_d','Subclávia D'],['subclavia_e','Subclávia E'],['femoral_d','Femoral D'],['femoral_e','Femoral E']];
+const SITE_PAI_OPTS = [['radial_d','Radial D'],['radial_e','Radial E'],['femoral_d','Femoral D'],['femoral_e','Femoral E'],['pediosa_d','Pediosa D'],['pediosa_e','Pediosa E']];
+const TEV_OPTS = [['aco_plena','ACO plena'],['clexane_profilatico','Clexane profilático'],['heparina_profilatica','Heparina profilática'],['bota_pneumatica','Bota pneumática']];
+const MOBILIZACAO_OPTS = [['sentar_fora_leito','Sentar fora do leito'],['deambular','Deambular'],['repouso_leito','Repouso no leito'],['nao_se_aplica','Não se aplica']];
+const VM_MODALIDADE_OPTS = [['vcv','VCV'],['pcv','PCV'],['psv','PSV'],['nao_se_aplica','Não se aplica']];
+
+function optLabel(list, value){ const f = list.find(o=>o[0]===value); return f ? f[1] : ''; }
+
+let state = { patients: [], units: [], currentUnit: null, view:'ativos', archiveDate: todayStr(), loading:true, modal:null, reportFrom: todayStr().slice(0,8)+'01', reportTo: todayStr(), bedCounts: {}, integrationConfig: null };
+
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function sortByLeito(arr){
+  return arr.slice().sort((a,b)=>(a.leito||'').localeCompare(b.leito||'','pt',{numeric:true}));
+}
+function fmtDateBR(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+function uid(){ return 'p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------- Storage ----------
+async function loadUnits(){
+  let units = ['UTI 1'];
+  let current = 'UTI 1';
+  try{
+    const u = await window.storage.get('units_index', false);
+    if(u && u.value){ const parsed = JSON.parse(u.value); if(Array.isArray(parsed) && parsed.length) units = parsed; }
+  }catch(e){}
+  try{
+    const c = await window.storage.get('current_unit', false);
+    if(c && c.value) current = c.value;
+  }catch(e){}
+  if(!units.includes(current)) current = units[0];
+  state.units = units; state.currentUnit = current;
+  try{ await window.storage.set('units_index', JSON.stringify(units), false); }catch(e){}
+  try{ await window.storage.set('current_unit', current, false); }catch(e){}
+
+  // Quantidade total de leitos por unidade (usado no mapa de leitos e na taxa de ocupação)
+  let bedCounts = {};
+  try{
+    const bc = await window.storage.get('unit_bed_counts', false);
+    if(bc && bc.value){ const parsed = JSON.parse(bc.value); if(parsed && typeof parsed==='object') bedCounts = parsed; }
+  }catch(e){}
+  let bedCountsChanged = false;
+  const defaults = { 'UTI 1': 20, 'UTI 2': 10, 'UTI 3': 10 };
+  units.forEach(u=>{
+    if(bedCounts[u]===undefined){
+      bedCounts[u] = defaults[u] !== undefined ? defaults[u] : 10;
+      bedCountsChanged = true;
+    }
+  });
+  state.bedCounts = bedCounts;
+  if(bedCountsChanged){ try{ await window.storage.set('unit_bed_counts', JSON.stringify(bedCounts), false); }catch(e){} }
+}
+async function saveBedCounts(){
+  try{ await window.storage.set('unit_bed_counts', JSON.stringify(state.bedCounts), false); }catch(e){}
+}
+// Normaliza o número do leito (aceita "1", "01", " 1 " etc como o mesmo leito)
+function normalizeLeito(leito){
+  const n = parseInt(String(leito||'').replace(/\D/g,''), 10);
+  return isNaN(n) ? null : n;
+}
+async function fetchLatestUnits(){
+  try{
+    const u = await window.storage.get('units_index', false);
+    if(u && u.value){ const parsed = JSON.parse(u.value); if(Array.isArray(parsed) && parsed.length) return parsed; }
+  }catch(e){}
+  return state.units.slice();
+}
+async function addUnit(name){
+  name = (name||'').trim();
+  if(!name){ showToast('Digite um nome para a UTI.'); return; }
+  const latest = await fetchLatestUnits();
+  if(!latest.includes(name)) latest.push(name);
+  state.units = latest;
+  state.currentUnit = name;
+  try{ await window.storage.set('units_index', JSON.stringify(state.units), false); }catch(e){}
+  try{ await window.storage.set('current_unit', name, false); }catch(e){}
+  state.modal = null;
+  showToast(`Unidade "${name}" selecionada.`);
+  render();
+}
+async function switchUnit(name){
+  state.currentUnit = name;
+  try{ await window.storage.set('current_unit', name, false); }catch(e){}
+  render();
+}
+async function removeUnit(name){
+  const latest = await fetchLatestUnits();
+  let remaining = latest.filter(u=>u!==name);
+  if(remaining.length===0) remaining = ['UTI 1'];
+  const fallback = remaining[0];
+  const affected = state.patients.filter(p => patientUnit(p) === name);
+
+  let message;
+  if(affected.length>0){
+    message = `ATENÇÃO: ainda há ${affected.length} paciente(s) gravado(s) na unidade "${name}".\n\nSe você confirmar, esses pacientes serão movidos automaticamente para a unidade "${fallback}" (nenhum dado será apagado), e a unidade "${name}" será removida da lista.\n\nTem certeza que quer excluir "${name}"?`;
+  } else {
+    message = `Remover a unidade "${name}"? Não há pacientes nela. Essa ação não pode ser desfeita.`;
+  }
+  if(!confirm(message)) return;
+
+  if(affected.length>0){
+    affected.forEach(p=>{ p.unidade = fallback; });
+    await Promise.all(affected.map(p=>savePatient(p)));
+  }
+  state.units = remaining;
+  if(state.currentUnit===name) state.currentUnit = fallback;
+  try{ await window.storage.set('units_index', JSON.stringify(state.units), false); }catch(e){}
+  try{ await window.storage.set('current_unit', state.currentUnit, false); }catch(e){}
+  showToast(affected.length>0
+    ? `Unidade "${name}" removida. ${affected.length} paciente(s) movido(s) para "${fallback}".`
+    : `Unidade "${name}" removida.`);
+  render();
+}
+
+async function loadAllPatients(){
+  try{
+    const idx = await window.storage.list('patient:', false);
+    const keys = (idx && idx.keys) ? idx.keys : [];
+    const results = await Promise.all(keys.map(async k=>{
+      try{ const r = await window.storage.get(k, false); return r ? JSON.parse(r.value) : null; }
+      catch(e){ return null; }
+    }));
+    state.patients = results.filter(Boolean).sort((a,b)=>(a.leito||'').localeCompare(b.leito||'','pt',{numeric:true}));
+    await healUnitsList();
+  }catch(e){ state.patients = []; }
+  state.loading = false;
+  render();
+}
+async function healUnitsList(){
+  const foundUnits = new Set(state.patients.map(p=>patientUnit(p)));
+  const latest = await fetchLatestUnits();
+  let changed = false;
+  foundUnits.forEach(u=>{ if(u && !latest.includes(u)){ latest.push(u); changed = true; } });
+  if(changed){
+    state.units = latest;
+    try{ await window.storage.set('units_index', JSON.stringify(state.units), false); }catch(e){}
+  } else {
+    state.units = latest;
+  }
+}
+async function savePatient(p){
+  try{ await window.storage.set('patient:'+p.id, JSON.stringify(p), false); }
+  catch(e){ showToast('Erro ao salvar. Tente novamente.'); }
+}
+
+// ---------- Model ----------
+function blankPatient(nome, leito, hipotese, dataAdmissao){
+  const dva = {}; DVA_DRUGS.forEach(d=>dva[d]=false);
+  const sedacaoDrogas = {}; SEDACAO_DRUGS.forEach(d=>sedacaoDrogas[d]=false);
+  return {
+    id: uid(), nome: nome||'', leito: leito||'', hipotese: hipotese||'',
+    unidade: state.currentUnit || 'UTI 1',
+    dataAdmissao: dataAdmissao||todayStr(), dataVisita: todayStr(),
+    dva, atb:'', atbDataInicio:'', dieta:'', sedacaoDrogas, sedacao:'', cpot:'', despertar:'', rass:'', metaRass:'',
+    cvc:{local:'',data:''}, shilley:{local:'',data:''}, pai:{local:'',data:''}, picc:{local:'',data:''}, sondaVesical:{data:''},
+    intubacaoOrotraqueal:{data:''}, traqueostomia:{data:''},
+    tre:'', camIcu:'', familia:'', cuidadosPaliativos:'', tevProfilaxia:'', protecaoGastrica:'', protecaoCornea:'', rxAvaliado:'',
+    mobilizacao:'', metas:'', ventModalidade:'', ventPF:'', ventPeep:'', ventFio2:'',
+    higieneOral:'', lesaoPorPressao:'', huddleDate:'', huddleChecked:{}, reinternacaoTipo:'', sepseProtocoloData:'',
+    ultimaAtualizacao: todayStr(), status:'ativo', dataAlta:null, situacaoAlta:null, tipoAlta:'', history:[]
+  };
+}
+
+function moveToUnit(id, newUnit){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  p.unidade = newUnit;
+  savePatient(p);
+  state.modal = null;
+  showToast(`Paciente movido para "${newUnit}".`);
+  render();
+}
+async function moveAllPatients(fromUnit, toUnit){
+  const affected = state.patients.filter(p=>patientUnit(p)===fromUnit);
+  if(affected.length===0){ showToast('Nenhum paciente encontrado nessa unidade.'); state.modal=null; render(); return; }
+  affected.forEach(p=>{ p.unidade = toUnit; });
+  await Promise.all(affected.map(p=>savePatient(p)));
+  state.modal = null;
+  showToast(`${affected.length} paciente(s) movido(s) para "${toUnit}".`);
+  render();
+}
+function updateField(id, field, value){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  p[field] = value; p.ultimaAtualizacao = todayStr(); savePatient(p); renderStatsOnly();
+}
+function updateFieldLocal(id, field, value){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  p[field] = value;
+}
+function updateNested(id, group, key, value){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  if(!p[group]) p[group] = {};
+  p[group][key] = value; p.ultimaAtualizacao = todayStr(); savePatient(p); renderStatsOnly();
+}
+function toggleDrug(id, groupField, drug){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  if(!p[groupField]) p[groupField] = {};
+  p[groupField][drug] = !p[groupField][drug];
+  p.ultimaAtualizacao = todayStr();
+  savePatient(p);
+  render();
+}
+
+function registerRound(id){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  const today = todayStr();
+  const snapshot = JSON.parse(JSON.stringify({
+    date: today, hipotese:p.hipotese, dva:p.dva, atb:p.atb, atbDataInicio:p.atbDataInicio, dieta:p.dieta, sedacaoDrogas:p.sedacaoDrogas, sedacao:p.sedacao,
+    cpot:p.cpot, despertar:p.despertar, rass:p.rass, metaRass:p.metaRass, cvc:p.cvc, shilley:p.shilley, picc:p.picc,
+    pai:p.pai, sondaVesical:p.sondaVesical, intubacaoOrotraqueal:p.intubacaoOrotraqueal, traqueostomia:p.traqueostomia, tre:p.tre, camIcu:p.camIcu, familia:p.familia, cuidadosPaliativos:p.cuidadosPaliativos,
+    tevProfilaxia:p.tevProfilaxia, protecaoGastrica:p.protecaoGastrica, protecaoCornea:p.protecaoCornea,
+    rxAvaliado:p.rxAvaliado, mobilizacao:p.mobilizacao, metas:p.metas, higieneOral:p.higieneOral, lesaoPorPressao:p.lesaoPorPressao,
+    ventModalidade:p.ventModalidade, ventPF:p.ventPF, ventPeep:p.ventPeep, ventFio2:p.ventFio2
+  }));
+  p.history = (p.history||[]).filter(h=>h.date!==today);
+  p.history.push(snapshot);
+  p.ultimaAtualizacao = today; p.dataVisita = today;
+  savePatient(p);
+  showToast(`Rodada de hoje registrada para ${p.nome||'paciente'}.`);
+  render();
+}
+function closeAllRounds(){
+  const ativos = state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit);
+  ativos.forEach(p=>registerRound(p.id));
+  showToast(`Rodada de hoje fechada para ${ativos.length} paciente(s).`);
+}
+function addPatient(data){
+  const p = blankPatient(data.nome, data.leito, data.hipotese, data.dataAdmissao);
+  p.reinternacaoTipo = data.reinternacaoTipo || '';
+  state.patients.push(p); savePatient(p); state.modal = null; render();
+  if(p.reinternacaoTipo){ sendReinternacaoToIntegration(p); }
+}
+// ---- Integração com o app de Gestão de Óbitos (agora sincronizada via Firebase) ----
+const OBITOS_LS_URL = 'uti_obitos_integration_url'; // usado só como migração do formato antigo
+const OBITOS_LS_KEY = 'uti_obitos_integration_key';
+function getObitosIntegrationConfig(){
+  if(state.integrationConfig) return state.integrationConfig;
+  try{
+    const url = localStorage.getItem(OBITOS_LS_URL);
+    const key = localStorage.getItem(OBITOS_LS_KEY);
+    if(url && key) return {url, key};
+  }catch(e){}
+  return null;
+}
+async function loadIntegrationConfig(){
+  try{
+    const r = await window.storage.get('integration_config', false);
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      if(parsed && parsed.url && parsed.key){ state.integrationConfig = parsed; return; }
+    }
+  }catch(e){}
+  // Migração: se não tem configuração no Firebase ainda, mas este navegador tinha uma salva
+  // localmente (versão antiga), usa ela agora e já sincroniza pra todos os outros aparelhos.
+  try{
+    const url = localStorage.getItem(OBITOS_LS_URL);
+    const key = localStorage.getItem(OBITOS_LS_KEY);
+    if(url && key){
+      state.integrationConfig = {url, key};
+      await window.storage.set('integration_config', JSON.stringify({url, key}), false);
+    }
+  }catch(e){}
+}
+async function saveObitosIntegrationConfig(url, key){
+  state.integrationConfig = {url, key};
+  try{ await window.storage.set('integration_config', JSON.stringify({url, key}), false); }catch(e){}
+  try{ localStorage.setItem(OBITOS_LS_URL, url); localStorage.setItem(OBITOS_LS_KEY, key); }catch(e){}
+}
+async function sendObitoToIntegration(p){
+  const cfg = getObitosIntegrationConfig();
+  if(!cfg){ return; } // integração não configurada neste navegador — silencioso, não bloqueia a alta
+  const dias = (p.dataAdmissao && p.dataAlta) ? diffDays(p.dataAdmissao, p.dataAlta) : null;
+  const payload = {
+    origem_id: p.id,
+    nome: p.nome || '',
+    unidade_uti: patientUnit(p),
+    leito: p.leito || '',
+    data_hora_hosp: p.dataAdmissao || '',
+    data_hora_uti: p.dataAdmissao || '',
+    data_hora_obito: p.dataAlta || '',
+    dias_uti: dias!==null ? dias : '',
+    motivo_int: p.hipotese || '',
+    diag1: p.hipotese || '',
+    paliativo: p.cuidadosPaliativos || '',
+    vm: p.ventModalidade && p.ventModalidade!=='nao_se_aplica' ? 'sim' : 'nao',
+  };
+  try{
+    const resp = await fetch(cfg.url.replace(/\/$/,'') + '/api/import-obito', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': cfg.key },
+      body: JSON.stringify(payload)
+    });
+    if(resp.ok){ showToast('Registro enviado automaticamente pro app de Óbitos.'); }
+    else { const err = await resp.json().catch(()=>({})); showToast('Não consegui enviar pro app de Óbitos: ' + (err.error||resp.status)); }
+  }catch(e){
+    showToast('Não consegui enviar pro app de Óbitos (sem conexão ou integração não configurada).');
+  }
+}
+async function sendReinternacaoToIntegration(p){
+  const cfg = getObitosIntegrationConfig();
+  if(!cfg){ return; } // integração não configurada neste navegador — silencioso, não bloqueia o cadastro
+  const payload = {
+    origem_id: p.id,
+    nome: p.nome || '',
+    unidade_da_alta: patientUnit(p),
+    leito: p.leito || '',
+    tipo_reint: p.reinternacaoTipo || '',
+    data_hora_reint: p.dataAdmissao || '',
+    motivo_int: p.hipotese || '',
+  };
+  try{
+    const resp = await fetch(cfg.url.replace(/\/$/,'') + '/api/import-reinternacao', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': cfg.key },
+      body: JSON.stringify(payload)
+    });
+    if(resp.ok){ showToast('Registro enviado automaticamente pro app de Reinternações.'); }
+    else { const err = await resp.json().catch(()=>({})); showToast('Não consegui enviar pro app de Reinternações: ' + (err.error||resp.status)); }
+  }catch(e){
+    showToast('Não consegui enviar pro app de Reinternações (sem conexão ou integração não configurada).');
+  }
+}
+async function sendSepseProtocol(id){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  const cfg = getObitosIntegrationConfig();
+  if(!cfg){ showToast('Integração com o app de Óbitos/Sepse não configurada neste navegador. Clique em "🔗 Integração Óbitos" no topo primeiro.'); return; }
+  if(!confirm(`Ativar o Protocolo Sepse para ${p.nome||'este paciente'}? Isso envia nome, leito, unidade e horário agora para o app de Sepse (status "pendente"), para completar o restante (atendimento, ATB, lactato, hemocultura) por lá.`)) return;
+  const payload = {
+    origem_id: p.id,
+    nome: p.nome || '',
+    leito: p.leito || '',
+    unidade: patientUnit(p),
+    data_hora_identificacao: new Date().toISOString(),
+    sepse: 'sim',
+  };
+  try{
+    const resp = await fetch(cfg.url.replace(/\/$/,'') + '/api/import-sepse', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': cfg.key },
+      body: JSON.stringify(payload)
+    });
+    if(resp.ok){
+      p.sepseProtocoloData = todayStr();
+      savePatient(p);
+      showToast('Protocolo Sepse enviado pro app de Sepse. Complete o restante por lá.');
+      render();
+    } else {
+      const err = await resp.json().catch(()=>({}));
+      showToast('Não consegui enviar o Protocolo Sepse: ' + (err.error||resp.status));
+    }
+  }catch(e){
+    showToast('Não consegui enviar o Protocolo Sepse (sem conexão).');
+  }
+}
+function confirmAlta(id, dataAlta, situacaoAlta, tipoAlta){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  p.status='alta'; p.dataAlta=dataAlta||todayStr(); p.situacaoAlta=situacaoAlta||''; p.tipoAlta=tipoAlta||'';
+  savePatient(p); state.modal=null;
+  showToast(`${p.nome||'Paciente'} teve alta registrada e foi arquivado(a).`);
+  if(tipoAlta==='obito'){ sendObitoToIntegration(p); }
+  render();
+}
+function revertAlta(id){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  p.status='ativo'; p.dataAlta=null; p.situacaoAlta=null; p.tipoAlta='';
+  savePatient(p); state.modal=null;
+  showToast(`Alta revertida. ${p.nome||'Paciente'} voltou para a lista ativa.`);
+  render();
+}
+function deletePatient(id){
+  const p = state.patients.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Remover definitivamente o registro de ${p.nome||'paciente'}? Essa ação não pode ser desfeita.`)) return;
+  window.storage.delete('patient:'+id, false).catch(()=>{});
+  state.patients = state.patients.filter(x=>x.id!==id);
+  render();
+}
+function bedInRange(leito, min, max){
+  const n = parseInt(String(leito||'').replace(/\D/g,''), 10);
+  if(isNaN(n)) return false;
+  return n>=min && n<=max;
+}
+function searchByBedRange(min, max){
+  const results = state.patients.filter(p => patientUnit(p)===state.currentUnit && bedInRange(p.leito, min, max));
+  state.modal.results = results;
+  state.modal.excluded = new Set();
+  render();
+}
+async function bulkDeleteSelected(){
+  const list = (state.modal.results||[]).filter(p=>!state.modal.excluded.has(p.id));
+  if(list.length===0){ showToast('Nenhum paciente selecionado.'); return; }
+  const names = list.map(p=>`${p.nome||'(sem nome)'} (leito ${p.leito||'—'})`).join('\n');
+  if(!confirm(`Excluir DEFINITIVAMENTE ${list.length} paciente(s)?\n\n${names}\n\nEssa ação NÃO pode ser desfeita.`)) return;
+  await Promise.all(list.map(p=>window.storage.delete('patient:'+p.id, false).catch(()=>{})));
+  const idsToRemove = new Set(list.map(p=>p.id));
+  state.patients = state.patients.filter(p=>!idsToRemove.has(p.id));
+  state.modal = null;
+  showToast(`${list.length} paciente(s) excluído(s) definitivamente.`);
+  render();
+}
+
+// ---------- Excel export ----------
+function dvaString(p){ return DVA_DRUGS.filter(d=>p.dva && p.dva[d]).join(', ') || '—'; }
+function sedacaoString(p){
+  const drugs = SEDACAO_DRUGS.filter(d=>p.sedacaoDrogas && p.sedacaoDrogas[d]).join(', ');
+  const obs = p.sedacao || '';
+  if(drugs && obs) return drugs + ' — ' + obs;
+  return drugs || obs || '—';
+}
+function atbString(pOrSnap){
+  return pOrSnap.atb || '—';
+}
+function siteDateString(obj, siteOpts){
+  if(!obj) return '—';
+  const local = obj.local ? optLabel(siteOpts, obj.local) : '';
+  const data = obj.data ? fmtDateBR(obj.data) : '';
+  if(!local && !data) return '—';
+  return [local, data].filter(Boolean).join(' — ');
+}
+function patientToRow(p){
+  return {
+    'Data': fmtDateBR(p.dataVisita), 'Leito': p.leito||'', 'Paciente': p.nome||'', 'HD': p.hipotese||'',
+    'DVA': dvaString(p), 'ATB': atbString(p), 'ATB - Data Início': p.atbDataInicio?fmtDateBR(p.atbDataInicio):'—', 'Sedação': sedacaoString(p), 'Metas do Dia': p.metas||'',
+    'Dieta': optLabel(DIETA_OPTS,p.dieta),
+    'CPOT (dor)': optLabel(SIMNAO_OPTS,p.cpot), 'Despertar': optLabel(SIMNAO_OPTS,p.despertar),
+    'RASS': p.rass||'', 'Meta RASS': optLabel(METARASS_OPTS,p.metaRass),
+    'VM - Modalidade': optLabel(VM_MODALIDADE_OPTS,p.ventModalidade), 'VM - P/F': p.ventPF||'', 'VM - PEEP': p.ventPeep||'', 'VM - FiO2': p.ventFio2||'',
+    'CVC': siteDateString(p.cvc, SITE_CENTRAL_OPTS), 'Shilley': siteDateString(p.shilley, SITE_CENTRAL_OPTS), 'PICC': siteDateString(p.picc, SITE_CENTRAL_OPTS),
+    'PAI': siteDateString(p.pai, SITE_PAI_OPTS), 'Sonda Vesical (data)': p.sondaVesical && p.sondaVesical.data ? fmtDateBR(p.sondaVesical.data) : '—',
+    'Intubação Orotraqueal (data)': p.intubacaoOrotraqueal && p.intubacaoOrotraqueal.data ? fmtDateBR(p.intubacaoOrotraqueal.data) : '—',
+    'Traqueostomia (data)': p.traqueostomia && p.traqueostomia.data ? fmtDateBR(p.traqueostomia.data) : '—',
+    'TRE': optLabel(SIMNAO_OPTS,p.tre), 'CAM-ICU': optLabel(SIMNAO_OPTS,p.camIcu), 'Família': optLabel(SIMNAO_OPTS,p.familia), 'Cuidados Paliativos': optLabel(SIMNAO_OPTS,p.cuidadosPaliativos),
+    'Profilaxia TEV': optLabel(TEV_OPTS,p.tevProfilaxia), 'Proteção Gástrica': optLabel(SIMNAO_OPTS,p.protecaoGastrica),
+    'Proteção Córnea': optLabel(SIMNAO_OPTS,p.protecaoCornea), 'RX Avaliado': optLabel(SIMNAO_OPTS,p.rxAvaliado),
+    'Mobilização': optLabel(MOBILIZACAO_OPTS,p.mobilizacao), 'Higiene Oral': optLabel(HIGIENE_ORAL_OPTS,p.higieneOral), 'Lesão por Pressão': optLabel(SIMNAO_OPTS,p.lesaoPorPressao),
+    'Data Admissão': fmtDateBR(p.dataAdmissao), 'Última Atualização': fmtDateBR(p.ultimaAtualizacao),
+    'Status': p.status==='alta'?'Alta':'Ativo', 'Data Alta': fmtDateBR(p.dataAlta), 'Tipo de Alta': optLabel(TIPO_ALTA_OPTS,p.tipoAlta), 'Situação de Alta': p.situacaoAlta||''
+  };
+}
+function autoWidths(rows){
+  if(!rows.length) return [];
+  const keys = Object.keys(rows[0]);
+  return keys.map(k=>{ const cap = k==='Metas do Dia' ? 60 : 42; const maxLen = Math.max(k.length, ...rows.map(r=>String(r[k]||'').length)); return {wch: Math.min(Math.max(maxLen+2,10),cap)}; });
+}
+function buildWorkbookSingle(list, sheetName){
+  const rows = list.map(patientToRow);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{'Paciente':''}]);
+  ws['!cols'] = autoWidths(rows);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName||'Rodada');
+  return wb;
+}
+function exportXLSX(list, filename, sheetName){
+  if(typeof XLSX==='undefined'){ showToast('Não foi possível carregar o Excel agora. Tente novamente.'); return; }
+  XLSX.writeFile(buildWorkbookSingle(list, sheetName), filename);
+  showToast('Excel baixado.');
+}
+function buildWorkbookAtivosEArquivo(){
+  const ativos = sortByLeito(state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit));
+  const altas = sortByLeito(state.patients.filter(p=>p.status==='alta' && patientUnit(p)===state.currentUnit));
+  const wb = XLSX.utils.book_new();
+  const wsA = XLSX.utils.json_to_sheet(ativos.length ? ativos.map(patientToRow) : [{'Paciente':''}]);
+  wsA['!cols'] = autoWidths(ativos.map(patientToRow));
+  XLSX.utils.book_append_sheet(wb, wsA, 'Ativos');
+  const wsB = XLSX.utils.json_to_sheet(altas.length ? altas.map(patientToRow) : [{'Paciente':''}]);
+  wsB['!cols'] = autoWidths(altas.map(patientToRow));
+  XLSX.utils.book_append_sheet(wb, wsB, 'Arquivo (todas altas)');
+  const safeUnit = (state.currentUnit||'UTI').replace(/[^a-zA-Z0-9]+/g,'_');
+  const filename = `${safeUnit}_rodada_completa_${todayStr()}.xlsx`;
+  return { wb, filename };
+}
+function exportAllXLSX(){
+  const { wb, filename } = buildWorkbookAtivosEArquivo();
+  XLSX.writeFile(wb, filename);
+  showToast('Excel baixado.');
+}
+function exportFullBackupXLSX(){
+  if(typeof XLSX==='undefined'){ showToast('Não foi possível carregar o Excel agora. Tente novamente.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Aba 1: estado atual de todos os pacientes, de todas as unidades
+  const allPatients = sortByLeito(state.patients.slice());
+  const patientRows = allPatients.map(p => Object.assign({ 'Unidade': patientUnit(p) }, patientToRow(p)));
+  const ws1 = XLSX.utils.json_to_sheet(patientRows.length ? patientRows : [{'Paciente':''}]);
+  ws1['!cols'] = autoWidths(patientRows);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Pacientes (todas unidades)');
+
+  // Aba 2: TODO o histórico diário já registrado, de todos os pacientes e unidades
+  const historyRows = [];
+  allPatients.forEach(p=>{
+    (p.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(snap=>{
+      historyRows.push(Object.assign({ 'Unidade': patientUnit(p) }, snapshotToReportRow(p, snap)));
+    });
+  });
+  const ws2 = XLSX.utils.json_to_sheet(historyRows.length ? historyRows : [{'Paciente':''}]);
+  ws2['!cols'] = autoWidths(historyRows);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Histórico diário completo');
+
+  XLSX.writeFile(wb, `BACKUP_COMPLETO_${todayStr()}.xlsx`);
+  showToast(`Backup exportado: ${patientRows.length} paciente(s), ${historyRows.length} registro(s) de histórico.`);
+}
+
+// ---------- Print (resumo: nome, leito, atb, dva, sedação, metas) ----------
+function printSummary(){
+  const ativos = sortByLeito(state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit));
+  if(ativos.length===0){ showToast('Nenhum paciente ativo para imprimir.'); return; }
+
+  const rowsHtml = ativos.map(p=>{
+    const metas = (p.metas||'—').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    const esc = (s)=> String(s||'—').replace(/</g,'&lt;');
+    return `<tr>
+      <td>${esc(p.leito)}</td>
+      <td><b>${esc(p.nome)}</b></td>
+      <td>${esc(p.hipotese)}</td>
+      <td>${esc(atbString(p))}</td>
+      <td>${esc(dvaString(p))}</td>
+      <td>${esc(sedacaoString(p))}</td>
+      <td class="metas-print">${metas}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Visita Multidisciplinar - Resumo ${fmtDateBR(todayStr())}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:24px;}
+    h2{margin:0 0 2px;font-size:18px;}
+    .sub{font-size:12px;color:#555;margin-bottom:14px;}
+    .print-btn{margin-bottom:16px;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #0F6E6E;background:#0F6E6E;color:#fff;cursor:pointer;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{border:1px solid #999;padding:7px 9px;font-size:12.5px;text-align:left;vertical-align:top;}
+    th{background:#eee;}
+    .metas-print{white-space:pre-line;}
+    @media print{ .print-btn{display:none;} body{margin:8mm;} }
+  </style></head>
+  <body>
+    <button class="print-btn" onclick="window.print()">Imprimir / Salvar em PDF</button>
+    <h2>Visita Multidisciplinar — Resumo</h2>
+    <div class="sub">Data: ${fmtDateBR(todayStr())}</div>
+    <table>
+      <thead><tr><th>Leito</th><th>Nome</th><th>HD</th><th>ATB</th><th>DVA</th><th>Sedação</th><th>Metas</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  showToast('Abrindo a folha de impressão em uma nova aba...');
+}
+
+// ---------- DOM helpers ----------
+function el(tag, attrs, children){
+  const e = document.createElement(tag);
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{
+    if(k==='class') e.className=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if(k==='disabled'){ if(v) e.setAttribute('disabled','disabled'); }
+    else if(v!==undefined && v!==null) e.setAttribute(k, v);
+  });
+  (children||[]).forEach(c=>e.appendChild(typeof c==='string'?document.createTextNode(c):c));
+  return e;
+}
+function selectField(value, options, onchange, archived){
+  if(archived) return el('span',{},[optLabel(options,value)||'—']);
+  const sel = el('select',{onchange:e=>onchange(e.target.value)});
+  sel.appendChild(el('option',{value:''},['—']));
+  options.forEach(([v,l])=>{ const o=el('option',{value:v},[l]); if(value===v) o.setAttribute('selected','selected'); sel.appendChild(o); });
+  return sel;
+}
+function drugChips(patientId, groupField, drugs, current, archived){
+  if(archived){
+    const selected = drugs.filter(d=>current && current[d]);
+    if(selected.length===0) return el('span',{},['—']);
+    const wrap = el('div',{},[]);
+    selected.forEach(d=>wrap.appendChild(el('span',{class:'chip-static'},[d])));
+    return wrap;
+  }
+  const wrap = el('div',{class:'chip-list'});
+  drugs.forEach(d=>{
+    const on = !!(current && current[d]);
+    wrap.appendChild(el('button',{type:'button', class:'chip'+(on?' on':''), onclick:()=>toggleDrug(patientId, groupField, d)},[d]));
+  });
+  return wrap;
+}
+function miniField(label, control){
+  return el('div',{class:'mini-field'},[ el('span',{class:'ml'},[label]), control ]);
+}
+
+function renderStatsOnly(){
+  const host = document.getElementById('stats-host');
+  if(host) host.replaceWith(buildStats());
+}
+function patientUnit(p){ return p.unidade || (state.units[0] || 'UTI 1'); }
+
+function isWeekendToday(){
+  const dow = new Date(todayStr()+'T00:00:00').getDay();
+  return dow===0 || dow===6; // domingo ou sábado
+}
+function buildStats(){
+  const ativos = state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit);
+  const total = ativos.length;
+  const camPos = ativos.filter(p=>p.camIcu==='sim').length;
+  const naoAtualizados = isWeekendToday() ? 0 : ativos.filter(p=>p.ultimaAtualizacao!==todayStr()).length;
+  const altasHoje = state.patients.filter(p=>p.status==='alta' && p.dataAlta===todayStr() && patientUnit(p)===state.currentUnit).length;
+  const comCVC = ativos.filter(p=>p.cvc && p.cvc.local).length;
+  const comPAI = ativos.filter(p=>p.pai && p.pai.local).length;
+  const comPICC = ativos.filter(p=>p.picc && p.picc.local).length;
+  const comSonda = ativos.filter(p=>p.sondaVesical && p.sondaVesical.data).length;
+  const comATB = ativos.filter(p=>!!p.atb).length;
+  const comPaliativos = ativos.filter(p=>p.cuidadosPaliativos==='sim').length;
+  const treFilled = ativos.filter(p=>treApplies(p) && !!p.tre);
+  const treSim = treFilled.filter(p=>p.tre==='sim').length;
+  const wrap = el('div',{class:'stats', id:'stats-host'});
+  wrap.appendChild(statCard(total,'Pacientes ativos',''));
+  wrap.appendChild(statCard(camPos+' de '+total,'Delirium (CAM-ICU +)', camPos>0?'alert':''));
+  wrap.appendChild(statCard(treFilled.length? (treSim+' de '+treFilled.length) : '—','TRE realizado hoje',''));
+  wrap.appendChild(statCard(naoAtualizados,'Sem evolução hoje'+(isWeekendToday()?' (fim de semana)':''), naoAtualizados>0?'warn':'ok'));
+  wrap.appendChild(statCard(altasHoje,'Altas hoje',''));
+  wrap.appendChild(statCard(comCVC+' de '+total,'Com CVC',''));
+  wrap.appendChild(statCard(comPICC+' de '+total,'Com PICC',''));
+  wrap.appendChild(statCard(comPAI+' de '+total,'Com PAI',''));
+  wrap.appendChild(statCard(comSonda+' de '+total,'Com sonda vesical',''));
+  wrap.appendChild(statCard(comATB+' de '+total,'Em uso de ATB',''));
+  wrap.appendChild(statCard(comPaliativos+' de '+total,'Cuidados paliativos',''));
+  return wrap;
+}
+function statCard(n,label,cls){
+  const txt = String(n);
+  const fontSize = txt.length>6 ? '15px' : '20px';
+  return el('div',{class:'stat '+(cls||'')},[el('div',{class:'n', style:'font-size:'+fontSize+';'},[txt]), el('div',{class:'l'},[label])]);
+}
+
+function patientRow(p, archived){
+  const isStale = !isWeekendToday() && (p.ultimaAtualizacao !== todayStr());
+  const tr = el('tr',{});
+
+  // Paciente
+  const nomeCell = el('td',{class:'name-cell','data-label':'Paciente'});
+  if(!archived){
+    const nomeInput = el('input',{class:'cell-input nome', value:p.nome, placeholder:'Nome do paciente', onchange:e=>updateField(p.id,'nome',e.target.value)});
+    const leitoInput = el('input',{class:'cell-input leito', value:p.leito, placeholder:'Leito', onchange:e=>updateField(p.id,'leito',e.target.value)});
+    const dataInput = el('input',{class:'cell-input data-visita', type:'date', onchange:e=>updateField(p.id,'dataVisita',e.target.value)});
+    dataInput.value = p.dataVisita || todayStr();
+    nomeCell.appendChild(nomeInput); nomeCell.appendChild(leitoInput); nomeCell.appendChild(dataInput);
+  } else {
+    nomeCell.appendChild(el('div',{style:'font-weight:600'},[p.nome||'—']));
+    nomeCell.appendChild(el('div',{class:'mono',style:'font-size:11px;color:var(--muted)'},[p.leito?'Leito '+p.leito:'']));
+  }
+  tr.appendChild(nomeCell);
+
+  // HD
+  const hdTd = el('td',{'data-label':'HD', class:'hd-col'});
+  if(archived){ hdTd.appendChild(el('div',{},[p.hipotese||'—'])); }
+  else { const ta=el('textarea',{class:'cell-textarea',rows:'4',placeholder:'Hipótese diagnóstica',oninput:e=>updateFieldLocal(p.id,'hipotese',e.target.value),onchange:e=>updateField(p.id,'hipotese',e.target.value)}); ta.value=p.hipotese||''; hdTd.appendChild(ta); }
+  tr.appendChild(hdTd);
+
+  // DVA
+  const dvaTd = el('td',{'data-label':'DVA', class:'dva-col'});
+  dvaTd.appendChild(drugChips(p.id, 'dva', DVA_DRUGS, p.dva, archived));
+  tr.appendChild(dvaTd);
+
+  // ATB
+  const atbTd = el('td',{'data-label':'ATB', class:'atb-col'});
+  if(archived){
+    atbTd.appendChild(el('div',{},[p.atb||'—']));
+  } else {
+    const ta=el('textarea',{class:'cell-textarea',rows:'4',placeholder:'Ex: Rocefin di 07/07 + Azitro di 08/07',oninput:e=>updateFieldLocal(p.id,'atb',e.target.value),onchange:e=>updateField(p.id,'atb',e.target.value)});
+    ta.value=p.atb||''; atbTd.appendChild(ta);
+  }
+  tr.appendChild(atbTd);
+
+  // Dieta
+  const dietaTd = el('td',{'data-label':'Dieta'});
+  dietaTd.appendChild(selectField(p.dieta, DIETA_OPTS, v=>updateField(p.id,'dieta',v), archived));
+  tr.appendChild(dietaTd);
+
+  // Sedação
+  const sedTd = el('td',{'data-label':'Sedação', class:'dva-col'});
+  sedTd.appendChild(drugChips(p.id, 'sedacaoDrogas', SEDACAO_DRUGS, p.sedacaoDrogas, archived));
+  if(archived){
+    if(p.sedacao) sedTd.appendChild(el('div',{style:'font-size:11.5px;color:var(--muted);margin-top:4px;'},[p.sedacao]));
+  } else {
+    const ta=el('textarea',{class:'cell-textarea',rows:'2',placeholder:'Obs / dose (opcional)',style:'margin-top:4px;',oninput:e=>updateFieldLocal(p.id,'sedacao',e.target.value),onchange:e=>updateField(p.id,'sedacao',e.target.value)});
+    ta.value=p.sedacao||''; sedTd.appendChild(ta);
+  }
+  tr.appendChild(sedTd);
+
+  // Neuro cluster: CPOT, Despertar, RASS, Meta RASS
+  const neuroTd = el('td',{'data-label':'Neuro (CPOT/Despertar/RASS)', class:'cluster'});
+  neuroTd.appendChild(miniField('CPOT (dor)', selectField(p.cpot, SIMNAO_OPTS, v=>updateField(p.id,'cpot',v), archived)));
+  neuroTd.appendChild(miniField('Despertar', selectField(p.despertar, SIMNAO_OPTS, v=>updateField(p.id,'despertar',v), archived)));
+  neuroTd.appendChild(miniField('RASS', archived ? el('span',{},[p.rass||'—']) : (()=>{ const sel=el('select',{onchange:e=>updateField(p.id,'rass',e.target.value)}); sel.appendChild(el('option',{value:''},['—'])); RASS_OPTS.forEach(v=>{ const o=el('option',{value:v},[v]); if(p.rass===v) o.setAttribute('selected','selected'); sel.appendChild(o); }); return sel; })()));
+  neuroTd.appendChild(miniField('Meta RASS', selectField(p.metaRass, METARASS_OPTS, v=>updateField(p.id,'metaRass',v), archived)));
+  tr.appendChild(neuroTd);
+
+  // Ventilação Mecânica cluster
+  const ventTd = el('td',{'data-label':'Ventilação Mecânica', class:'cluster'});
+  ventTd.appendChild(miniField('Modalidade', selectField(p.ventModalidade, VM_MODALIDADE_OPTS, v=>updateField(p.id,'ventModalidade',v), archived)));
+  if(archived){
+    ventTd.appendChild(miniField('P/F', el('span',{},[p.ventPF||'—'])));
+    ventTd.appendChild(miniField('PEEP', el('span',{},[p.ventPeep||'—'])));
+    ventTd.appendChild(miniField('FiO2', el('span',{},[p.ventFio2||'—'])));
+  } else {
+    const pfInput = el('input',{type:'text', inputmode:'decimal', placeholder:'Ex: 250', oninput:e=>updateFieldLocal(p.id,'ventPF',e.target.value), onchange:e=>updateField(p.id,'ventPF',e.target.value)});
+    pfInput.value = p.ventPF || '';
+    ventTd.appendChild(miniField('P/F', pfInput));
+    const peepInput = el('input',{type:'text', inputmode:'decimal', placeholder:'Ex: 8', oninput:e=>updateFieldLocal(p.id,'ventPeep',e.target.value), onchange:e=>updateField(p.id,'ventPeep',e.target.value)});
+    peepInput.value = p.ventPeep || '';
+    ventTd.appendChild(miniField('PEEP', peepInput));
+    const fio2Input = el('input',{type:'text', inputmode:'decimal', placeholder:'Ex: 40%', oninput:e=>updateFieldLocal(p.id,'ventFio2',e.target.value), onchange:e=>updateField(p.id,'ventFio2',e.target.value)});
+    fio2Input.value = p.ventFio2 || '';
+    ventTd.appendChild(miniField('FiO2', fio2Input));
+  }
+  tr.appendChild(ventTd);
+
+  // Dispositivos cluster: CVC, Shilley, PAI, Sonda vesical
+  const devTd = el('td',{'data-label':'Dispositivos (CVC/Shilley/PICC/PAI/SV/TOT/TQT)', class:'cluster dev-cluster'});
+  const refDate = archived ? (p.dataAlta || todayStr()) : todayStr();
+  const daysBadge = (dataStr, hasDevice, alertAfterDays) => {
+    if(!dataStr || (hasDevice===false)) return null;
+    const days = diffDays(dataStr, refDate);
+    if(days<0) return null;
+    const isAlert = alertAfterDays!==undefined && days>=alertAfterDays;
+    return el('span',{class: isAlert ? 'alert-tag' : 'fresh-tag', style:'margin-left:4px;'},[days+(days===1?' dia':' dias')]);
+  };
+  const devGroup = (title, obj, siteOpts, key, alertAfterDays) => {
+    const g = el('div',{class:'sub-group'});
+    const titleRow = el('div',{class:'sub-group-title', style:'display:flex;align-items:center;'},[title]);
+    const badge = daysBadge(obj.data, !!obj.local, alertAfterDays);
+    if(badge) titleRow.appendChild(badge);
+    g.appendChild(titleRow);
+    g.appendChild(miniField('Local', selectField(obj.local, siteOpts, v=>updateNested(p.id,key,'local',v), archived)));
+    if(archived){
+      g.appendChild(miniField('Data', el('span',{},[obj.data?fmtDateBR(obj.data):'—'])));
+    } else {
+      const di = el('input',{type:'date', onchange:e=>updateNested(p.id,key,'data',e.target.value)});
+      di.value = obj.data || '';
+      g.appendChild(miniField('Data', di));
+    }
+    return g;
+  };
+  devTd.appendChild(devGroup('CVC', p.cvc||{}, SITE_CENTRAL_OPTS, 'cvc', 7));
+  devTd.appendChild(devGroup('Shilley', p.shilley||{}, SITE_CENTRAL_OPTS, 'shilley', 7));
+  devTd.appendChild(devGroup('PICC', p.picc||{}, SITE_CENTRAL_OPTS, 'picc'));
+  devTd.appendChild(devGroup('PAI', p.pai||{}, SITE_PAI_OPTS, 'pai', 7));
+  const simpleDeviceGroup = (title, obj, key) => {
+    const g = el('div',{class:'sub-group'});
+    const titleRow = el('div',{class:'sub-group-title', style:'display:flex;align-items:center;'},[title]);
+    const badge = daysBadge(obj && obj.data, true);
+    if(badge) titleRow.appendChild(badge);
+    g.appendChild(titleRow);
+    if(archived){
+      g.appendChild(miniField('Data', el('span',{},[(obj&&obj.data)?fmtDateBR(obj.data):'—'])));
+    } else {
+      const di = el('input',{type:'date', onchange:e=>updateNested(p.id,key,'data',e.target.value)});
+      di.value = (obj && obj.data) || '';
+      g.appendChild(miniField('Data', di));
+    }
+    return g;
+  };
+  devTd.appendChild(simpleDeviceGroup('Sonda vesical', p.sondaVesical||{}, 'sondaVesical'));
+  devTd.appendChild(simpleDeviceGroup('Intubação Orotraqueal', p.intubacaoOrotraqueal||{}, 'intubacaoOrotraqueal'));
+  devTd.appendChild(simpleDeviceGroup('Traqueostomia', p.traqueostomia||{}, 'traqueostomia'));
+  tr.appendChild(devTd);
+
+  // TRE / CAM-ICU / Família / Paliativos cluster
+  const cluster2 = el('td',{'data-label':'TRE / CAM-ICU / Família / Paliativos', class:'cluster'});
+  cluster2.appendChild(miniField('TRE', selectField(p.tre, SIMNAO_OPTS, v=>updateField(p.id,'tre',v), archived)));
+  cluster2.appendChild(miniField('CAM-ICU', selectField(p.camIcu, SIMNAO_OPTS, v=>updateField(p.id,'camIcu',v), archived)));
+  cluster2.appendChild(miniField('Família', selectField(p.familia, SIMNAO_OPTS, v=>updateField(p.id,'familia',v), archived)));
+  cluster2.appendChild(miniField('Paliativos', selectField(p.cuidadosPaliativos, SIMNAO_OPTS, v=>updateField(p.id,'cuidadosPaliativos',v), archived)));
+  tr.appendChild(cluster2);
+
+  // Profilaxia TEV
+  const tevTd = el('td',{'data-label':'Profilaxia TEV'});
+  tevTd.appendChild(selectField(p.tevProfilaxia, TEV_OPTS, v=>updateField(p.id,'tevProfilaxia',v), archived));
+  tr.appendChild(tevTd);
+
+  // Cuidados cluster: proteção gástrica, córnea, RX avaliado, mobilização
+  const cuidadosTd = el('td',{'data-label':'Cuidados (Gástrica/Córnea/RX/Mobilização/Higiene/LPP)', class:'cluster'});
+  cuidadosTd.appendChild(miniField('P. Gástrica', selectField(p.protecaoGastrica, SIMNAO_OPTS, v=>updateField(p.id,'protecaoGastrica',v), archived)));
+  cuidadosTd.appendChild(miniField('P. Córnea', selectField(p.protecaoCornea, SIMNAO_OPTS, v=>updateField(p.id,'protecaoCornea',v), archived)));
+  cuidadosTd.appendChild(miniField('RX avaliado', selectField(p.rxAvaliado, SIMNAO_OPTS, v=>updateField(p.id,'rxAvaliado',v), archived)));
+  cuidadosTd.appendChild(miniField('Mobilização', selectField(p.mobilizacao, MOBILIZACAO_OPTS, v=>updateField(p.id,'mobilizacao',v), archived)));
+  cuidadosTd.appendChild(miniField('Higiene Oral', selectField(p.higieneOral, HIGIENE_ORAL_OPTS, v=>updateField(p.id,'higieneOral',v), archived)));
+  cuidadosTd.appendChild(miniField('Lesão Pressão', selectField(p.lesaoPorPressao, SIMNAO_OPTS, v=>updateField(p.id,'lesaoPorPressao',v), archived)));
+  tr.appendChild(cuidadosTd);
+
+  // Metas
+  const metasTd = el('td',{'data-label':'Metas do dia', class:'metas-col'});
+  if(archived){ metasTd.appendChild(el('div',{style:'white-space:pre-line'},[p.metas||'—'])); }
+  else { const ta=el('textarea',{class:'cell-textarea',rows:'3',placeholder:'Uma meta por linha',oninput:e=>updateFieldLocal(p.id,'metas',e.target.value),onchange:e=>updateField(p.id,'metas',e.target.value)}); ta.value=p.metas||''; metasTd.appendChild(ta); }
+  tr.appendChild(metasTd);
+
+  // Atualização
+  const statusTd = el('td',{'data-label':'Atualização'});
+  statusTd.appendChild(el('div',{class:'mono',style:'font-size:11px;color:var(--muted)'},[fmtDateBR(archived?p.dataAlta:p.ultimaAtualizacao)]));
+  if(!archived){ statusTd.appendChild(isStale ? el('span',{class:'stale-tag'},['dado de dia anterior']) : el('span',{class:'fresh-tag'},['atualizado hoje'])); }
+  tr.appendChild(statusTd);
+
+  // Ações
+  const actTd = el('td',{'data-label':'Ações', class:'actions-cell'});
+  if(!archived){
+    actTd.appendChild(el('button',{onclick:()=>registerRound(p.id)},['Registrar rodada']));
+    actTd.appendChild(el('button',{class:'danger-outline', onclick:()=>{state.modal={type:'alta',id:p.id,data:todayStr(),texto:''}; render();}},['Dar alta']));
+    actTd.appendChild(el('button',{class:'ghost', onclick:()=>{state.modal={type:'mudarUnidade',id:p.id}; render();}},['Mudar unidade']));
+    actTd.appendChild(el('button',{style:'color:'+(p.sepseProtocoloData?'var(--muted)':'#B45309')+';', onclick:()=>sendSepseProtocol(p.id)},[p.sepseProtocoloData ? '✅ Sepse enviado '+fmtDateBR(p.sepseProtocoloData) : '🚨 Protocolo Sepse']));
+    actTd.appendChild(el('button',{class:'ghost', style:'color:var(--danger);', onclick:()=>deletePatient(p.id)},['Excluir']));
+  } else {
+    actTd.appendChild(el('button',{onclick:()=>{state.modal={type:'reverter',id:p.id}; render();}},['Reverter alta']));
+    actTd.appendChild(el('button',{class:'ghost', onclick:()=>{state.modal={type:'mudarUnidade',id:p.id}; render();}},['Mudar unidade']));
+    actTd.appendChild(el('button',{class:'ghost', onclick:()=>deletePatient(p.id)},['Excluir']));
+    if(p.tipoAlta){ actTd.appendChild(el('div',{style:'font-size:11px;font-weight:700;color:'+(p.tipoAlta==='obito'?'var(--danger)':'var(--muted)')+';margin-top:2px;'},[optLabel(TIPO_ALTA_OPTS,p.tipoAlta)])); }
+    if(p.situacaoAlta){ actTd.appendChild(el('div',{style:'font-size:11px;color:var(--muted);margin-top:2px;'},['Obs: '+p.situacaoAlta])); }
+  }
+  tr.appendChild(actTd);
+
+  return tr;
+}
+
+const COLS = ['Paciente','HD','DVA','ATB','Dieta','Sedação','Neuro (CPOT/Despertar/RASS)','Ventilação Mecânica','Dispositivos (CVC/Shilley/PICC/PAI/SV/TOT/TQT)','TRE / CAM-ICU / Família / Paliativos','Profilaxia TEV','Cuidados (Gástrica/Córnea/RX/Mobilização/Higiene/LPP)','Metas do dia','Atualização','Ações'];
+const COLS_ARCHIVE = ['Paciente','HD','DVA','ATB','Dieta','Sedação','Neuro (CPOT/Despertar/RASS)','Ventilação Mecânica','Dispositivos (CVC/Shilley/PICC/PAI/SV/TOT/TQT)','TRE / CAM-ICU / Família / Paliativos','Profilaxia TEV','Cuidados (Gástrica/Córnea/RX/Mobilização/Higiene/LPP)','Metas do dia','Data alta','Ações'];
+
+function buildActiveView(){
+  const ativos = sortByLeito(state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit));
+  const wrap = el('div',{});
+  const toolbar = el('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;flex-wrap:wrap;'},[
+    el('button',{onclick:printSummary, disabled: ativos.length===0},['🖨 Imprimir resumo']),
+    el('button',{class:'primary', onclick:exportAllXLSX},['Exportar Excel (ativos + arquivo)']),
+    el('button',{onclick:closeAllRounds, disabled: ativos.length===0},['Fechar rodada de hoje']),
+    el('button',{onclick:()=>{state.modal={type:'novo'}; render();}},['+ Novo paciente'])
+  ]);
+  wrap.appendChild(toolbar);
+
+  if(ativos.length===0){
+    wrap.appendChild(el('div',{class:'empty-state'},[
+      el('div',{},['Nenhum paciente ativo no momento.']),
+      el('div',{},[el('b',{},['Clique em "Novo paciente" para começar a rodada de hoje.'])])
+    ]));
+    return wrap;
+  }
+  const tableWrap = el('div',{class:'table-wrap'});
+  const table = el('table',{});
+  const thead = el('thead',{}); const trh = el('tr',{});
+  COLS.forEach(h=>trh.appendChild(el('th',{},[h])));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody',{});
+  ativos.forEach(p=>tbody.appendChild(patientRow(p,false)));
+  table.appendChild(tbody); tableWrap.appendChild(table); wrap.appendChild(tableWrap);
+  return wrap;
+}
+
+function buildArchiveView(){
+  const wrap = el('div',{});
+  const listForDate = sortByLeito(state.patients.filter(p=>p.status==='alta' && p.dataAlta===state.archiveDate && patientUnit(p)===state.currentUnit));
+  const controls = el('div',{class:'archive-controls'},[
+    el('label',{style:'font-size:12px;font-weight:600;color:var(--muted);'},['Data da alta:']),
+    (()=>{ const inp=el('input',{type:'date', onchange:e=>{state.archiveDate=e.target.value; render();}}); inp.value=state.archiveDate; return inp; })(),
+    el('button',{onclick:()=>exportXLSX(listForDate, `${(state.currentUnit||'UTI').replace(/[^a-zA-Z0-9]+/g,'_')}_arquivo_${state.archiveDate}.xlsx`,'Arquivo'), style:'margin-left:auto;'},['Exportar Excel deste dia'])
+  ]);
+  wrap.appendChild(controls);
+  if(listForDate.length===0){
+    wrap.appendChild(el('div',{class:'empty-state'},['Nenhum paciente com alta registrada em ', el('b',{},[fmtDateBR(state.archiveDate)]), '.']));
+    return wrap;
+  }
+  const tableWrap = el('div',{class:'table-wrap'});
+  const table = el('table',{});
+  const thead = el('thead',{}); const trh = el('tr',{});
+  COLS_ARCHIVE.forEach(h=>trh.appendChild(el('th',{},[h])));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody',{});
+  listForDate.forEach(p=>tbody.appendChild(patientRow(p,true)));
+  table.appendChild(tbody); tableWrap.appendChild(table); wrap.appendChild(tableWrap);
+  return wrap;
+}
+
+// ---------- Relatórios (período) ----------
+function snapshotToReportRow(p, snap){
+  return {
+    'Data': fmtDateBR(snap.date), 'Leito': p.leito||'', 'Paciente': p.nome||'', 'HD': snap.hipotese||'',
+    'DVA': DVA_DRUGS.filter(d=>snap.dva && snap.dva[d]).join(', ')||'—',
+    'ATB': atbString(snap), 'ATB - Data Início': snap.atbDataInicio?fmtDateBR(snap.atbDataInicio):'—',
+    'Sedação': (SEDACAO_DRUGS.filter(d=>snap.sedacaoDrogas && snap.sedacaoDrogas[d]).join(', ')) + (snap.sedacao? ' — '+snap.sedacao : '') || '—',
+    'Metas do Dia': snap.metas||'',
+    'Dieta': optLabel(DIETA_OPTS, snap.dieta),
+    'CPOT (dor)': optLabel(SIMNAO_OPTS, snap.cpot), 'Despertar': optLabel(SIMNAO_OPTS, snap.despertar),
+    'RASS': snap.rass||'', 'Meta RASS': optLabel(METARASS_OPTS, snap.metaRass),
+    'VM - Modalidade': optLabel(VM_MODALIDADE_OPTS, snap.ventModalidade), 'VM - P/F': snap.ventPF||'', 'VM - PEEP': snap.ventPeep||'', 'VM - FiO2': snap.ventFio2||'',
+    'CVC': siteDateString(snap.cvc, SITE_CENTRAL_OPTS), 'Shilley': siteDateString(snap.shilley, SITE_CENTRAL_OPTS), 'PICC': siteDateString(snap.picc, SITE_CENTRAL_OPTS),
+    'PAI': siteDateString(snap.pai, SITE_PAI_OPTS), 'Sonda Vesical (data)': snap.sondaVesical && snap.sondaVesical.data ? fmtDateBR(snap.sondaVesical.data) : '—',
+    'Intubação Orotraqueal (data)': snap.intubacaoOrotraqueal && snap.intubacaoOrotraqueal.data ? fmtDateBR(snap.intubacaoOrotraqueal.data) : '—',
+    'Traqueostomia (data)': snap.traqueostomia && snap.traqueostomia.data ? fmtDateBR(snap.traqueostomia.data) : '—',
+    'TRE': optLabel(SIMNAO_OPTS, snap.tre), 'CAM-ICU': optLabel(SIMNAO_OPTS, snap.camIcu), 'Família': optLabel(SIMNAO_OPTS, snap.familia), 'Cuidados Paliativos': optLabel(SIMNAO_OPTS, snap.cuidadosPaliativos),
+    'Profilaxia TEV': optLabel(TEV_OPTS, snap.tevProfilaxia), 'Proteção Gástrica': optLabel(SIMNAO_OPTS, snap.protecaoGastrica),
+    'Proteção Córnea': optLabel(SIMNAO_OPTS, snap.protecaoCornea), 'RX Avaliado': optLabel(SIMNAO_OPTS, snap.rxAvaliado),
+    'Mobilização': optLabel(MOBILIZACAO_OPTS, snap.mobilizacao), 'Higiene Oral': optLabel(HIGIENE_ORAL_OPTS, snap.higieneOral), 'Lesão por Pressão': optLabel(SIMNAO_OPTS, snap.lesaoPorPressao)
+  };
+}
+function collectReportRows(from, to, unit){
+  const targetUnit = unit || state.currentUnit;
+  const rows = [];
+  state.patients.filter(p=>patientUnit(p)===targetUnit).forEach(p=>{
+    (p.history||[]).forEach(snap=>{
+      if(snap.date >= from && snap.date <= to) rows.push({p, snap});
+    });
+  });
+  rows.sort((a,b)=> a.snap.date===b.snap.date ? (a.p.leito||'').localeCompare(b.p.leito||'','pt',{numeric:true}) : a.snap.date.localeCompare(b.snap.date));
+  return rows;
+}
+function reportIndicator(rows, field, value){
+  const withField = rows.filter(r=>r.snap[field]);
+  if(withField.length===0) return '—';
+  const matching = withField.filter(r=>r.snap[field]===value).length;
+  return matching + ' de ' + withField.length + ' (' + Math.round(100*matching/withField.length) + '%)';
+}
+function reportIndicatorFilled(rows, field){
+  if(rows.length===0) return '—';
+  const filled = rows.filter(r=>r.snap[field]).length;
+  return filled + ' de ' + rows.length + ' (' + Math.round(100*filled/rows.length) + '%)';
+}
+function indicatorPct(rows, field, value){
+  const withField = rows.filter(r=>r.snap[field]);
+  if(withField.length===0) return null;
+  return Math.round(100*withField.filter(r=>r.snap[field]===value).length/withField.length);
+}
+function indicatorFilledPct(rows, field){
+  if(rows.length===0) return null;
+  return Math.round(100*rows.filter(r=>r.snap[field]).length/rows.length);
+}
+function reportIndicatorTRE(rows){
+  const applicable = rows.filter(r=>treApplies(r.snap) && r.snap.tre);
+  if(applicable.length===0) return '—';
+  const sim = applicable.filter(r=>r.snap.tre==='sim').length;
+  return sim + ' de ' + applicable.length + ' (' + Math.round(100*sim/applicable.length) + '%)';
+}
+function indicatorPctTRE(rows){
+  const applicable = rows.filter(r=>treApplies(r.snap) && r.snap.tre);
+  if(applicable.length===0) return null;
+  return Math.round(100*applicable.filter(r=>r.snap.tre==='sim').length/applicable.length);
+}
+// CAM-ICU: em branco ou "Não" significa "sem delirium" — o denominador é TODO o
+// registro no período (não só os preenchidos), diferente da regra geral dos outros campos.
+function reportIndicatorCAMICU(rows){
+  if(rows.length===0) return '—';
+  const sim = rows.filter(r=>r.snap.camIcu==='sim').length;
+  return sim + ' de ' + rows.length + ' (' + Math.round(100*sim/rows.length) + '%)';
+}
+function indicatorPctCAMICU(rows){
+  if(rows.length===0) return null;
+  return Math.round(100*rows.filter(r=>r.snap.camIcu==='sim').length/rows.length);
+}
+// TRE (Teste de Respiração Espontânea) só se aplica a quem tem tubo orotraqueal,
+// ou traqueostomia associada a ventilação mecânica ativa.
+function treApplies(pOrSnap){
+  const hasETT = !!(pOrSnap.intubacaoOrotraqueal && pOrSnap.intubacaoOrotraqueal.data);
+  const hasTQT = !!(pOrSnap.traqueostomia && pOrSnap.traqueostomia.data);
+  const onVM = !!pOrSnap.ventModalidade && pOrSnap.ventModalidade !== 'nao_se_aplica';
+  return hasETT || (hasTQT && onVM);
+}
+function diffDays(dateA, dateB){
+  const a = new Date(dateA+'T00:00:00'); const b = new Date(dateB+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+// Converte texto digitado em dd/mm/aaaa (ou d/m/aaaa) para o formato ISO aaaa-mm-dd usado internamente.
+function parseBRDate(text){
+  const m = String(text||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(!m) return null;
+  const dd = m[1].padStart(2,'0'), mm = m[2].padStart(2,'0'), yyyy = m[3];
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const d = new Date(iso+'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  return iso;
+}
+// Aceita só dia/mês (sem ano) e infere o ano automaticamente: usa o ano atual, ou o
+// anterior se a data ainda não tivesse acontecido esse ano (evita datas no futuro).
+function parseBRDateNoYear(text, referenceDateISO){
+  const m = String(text||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})$/);
+  if(!m) return null;
+  const dd = m[1].padStart(2,'0'), mm = m[2].padStart(2,'0');
+  const ref = new Date((referenceDateISO||todayStr())+'T00:00:00');
+  let year = ref.getFullYear();
+  let iso = `${year}-${mm}-${dd}`;
+  let d = new Date(iso+'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  if(d.getTime() > ref.getTime()){
+    year -= 1;
+    iso = `${year}-${mm}-${dd}`;
+    d = new Date(iso+'T00:00:00');
+    if(isNaN(d.getTime())) return null;
+  }
+  return iso;
+}
+function fmtDayMonth(iso){
+  if(!iso) return '';
+  const parts = iso.split('-');
+  if(parts.length!==3) return '';
+  return parts[2]+'/'+parts[1];
+}
+// Lê o texto do campo ATB no padrão "Rocefin di 07/07 + Azitro di 08/07" (ou
+// "Rocefin + Azitro di 07/07" quando compartilham a mesma data no fim do grupo).
+function parseATBSegments(atbText, referenceDateISO){
+  if(!atbText) return [];
+  const segments = atbText.split('+').map(s=>s.trim()).filter(Boolean);
+  const dateRegex = /(?:\bdi\b|\bdia\b|\bd\/?\b)?\s*(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\s*$/i;
+  const results = [];
+  let pending = [];
+  segments.forEach(seg=>{
+    const m = seg.match(dateRegex);
+    if(m){
+      const dd = m[1].padStart(2,'0'), mm = m[2].padStart(2,'0');
+      let iso;
+      if(m[3]){
+        const yyyy = m[3].length===2 ? '20'+m[3] : m[3];
+        iso = `${yyyy}-${mm}-${dd}`;
+        if(isNaN(new Date(iso+'T00:00:00').getTime())) iso = null;
+      } else {
+        iso = parseBRDateNoYear(`${dd}/${mm}`, referenceDateISO);
+      }
+      const nome = seg.slice(0, m.index).replace(/\b(di|dia|d)\b\s*$/i,'').trim();
+      pending.push({ nome: nome || seg, data: iso });
+      pending.forEach(e=>{ if(!e.data) e.data = iso; });
+      results.push(...pending);
+      pending = [];
+    } else {
+      pending.push({ nome: seg, data: null });
+    }
+  });
+  results.push(...pending);
+  return results.filter(r=>r.nome);
+}
+// Aproximação: uma linha de "metas" é considerada atingida quando:
+// (1) aparecia num dia e não aparece mais (com o mesmo texto) no registro seguinte; ou
+// (2) é uma meta de dieta ("iniciar dieta...") e um dia posterior traz "dieta" + "meta"/"alvo"; ou
+// (3) é uma meta de ATB ("iniciar/manter ATB...") e um dia posterior já tem ATB de fato preenchido.
+function computeGoalsAchieved(from, to){
+  const achieved = [];
+  state.patients.filter(p=>patientUnit(p)===state.currentUnit).forEach(p=>{
+    const hist = (p.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    for(let i=0; i<hist.length-1; i++){
+      if(hist[i].date<from || hist[i].date>to) continue;
+      const linesToday = (hist[i].metas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      if(linesToday.length===0) continue;
+      const linesNextSet = new Set((hist[i+1].metas||'').split('\n').map(s=>s.trim().toLowerCase()).filter(Boolean));
+      linesToday.forEach(line=>{
+        const ll = line.toLowerCase();
+        if(!linesNextSet.has(ll)){
+          achieved.push({ nome:p.nome, leito:p.leito, meta:line, dataRegistrada:hist[i].date, dataConcluida:hist[i+1].date, motivo:'não aparece mais' });
+          return;
+        }
+        if(ll.includes('dieta') && ll.includes('inici')){
+          for(let j=i+1;j<hist.length;j++){
+            const hit = (hist[j].metas||'').split('\n').map(s=>s.trim().toLowerCase()).find(l2=>l2.includes('dieta') && (l2.includes('meta')||l2.includes('alvo')));
+            if(hit){ achieved.push({ nome:p.nome, leito:p.leito, meta:line, dataRegistrada:hist[i].date, dataConcluida:hist[j].date, motivo:'dieta em meta/alvo' }); break; }
+          }
+        } else if((ll.includes('atb') || ll.includes('antibiot')) && (ll.includes('inici') || ll.includes('manter'))){
+          for(let j=i+1;j<hist.length;j++){
+            const hasAtb = !!hist[j].atb;
+            if(hasAtb){ achieved.push({ nome:p.nome, leito:p.leito, meta:line, dataRegistrada:hist[i].date, dataConcluida:hist[j].date, motivo:'ATB em uso' }); break; }
+          }
+        }
+      });
+    }
+  });
+  return achieved;
+}
+// Tempo de dispositivo (CVC/Shilley/PAI): agrupa períodos contínuos de uso a partir
+// da data de inserção informada, até o primeiro dia em que deixa de aparecer preenchido.
+function computeDeviceDurations(deviceKey, requiresLocal, unit){
+  const targetUnit = unit || state.currentUnit;
+  const concluded = []; // {nome, leito, local, dataInsercao, dataRemocao, dias}
+  const ongoing = [];   // {nome, leito, local, dataInsercao, diasAteAgora}
+  state.patients.filter(p=>patientUnit(p)===targetUnit).forEach(p=>{
+    const hist = (p.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    let active = null;
+    hist.forEach(snap=>{
+      const dev = snap[deviceKey];
+      const hasDevice = requiresLocal ? !!(dev && dev.local) : !!(dev && dev.data);
+      const localValue = (dev && dev.local) || 'presente';
+      if(hasDevice){
+        const insercao = dev.data || snap.date;
+        if(!active || active.local!==localValue || active.dataInsercao!==insercao){
+          if(active) ongoing.push({nome:p.nome, leito:p.leito, local:active.local, dataInsercao:active.dataInsercao, diasAteAgora: diffDays(active.dataInsercao, active.lastSeenDate)});
+          active = { local: localValue, dataInsercao: insercao, lastSeenDate: snap.date };
+        } else {
+          active.lastSeenDate = snap.date;
+        }
+      } else if(active){
+        concluded.push({ nome:p.nome, leito:p.leito, local:active.local, dataInsercao:active.dataInsercao, dataRemocao:snap.date, dias: diffDays(active.dataInsercao, snap.date) });
+        active = null;
+      }
+    });
+    if(active) ongoing.push({nome:p.nome, leito:p.leito, local:active.local, dataInsercao:active.dataInsercao, diasAteAgora: diffDays(active.dataInsercao, active.lastSeenDate)});
+  });
+  const avg = concluded.length ? Math.round((concluded.reduce((s,c)=>s+c.dias,0)/concluded.length)*10)/10 : null;
+  return { concluded, ongoing, avg };
+}
+function buildWorkbookRelatorio(rows){
+  const data = rows.map(r=>snapshotToReportRow(r.p, r.snap));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = autoWidths(data);
+  XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+  const safeUnit = (state.currentUnit||'UTI').replace(/[^a-zA-Z0-9]+/g,'_');
+  const filename = `${safeUnit}_relatorio_${state.reportFrom}_a_${state.reportTo}.xlsx`;
+  return { wb, filename };
+}
+function exportReportXLSX(rows){
+  if(rows.length===0){ showToast('Nenhum registro no período selecionado.'); return; }
+  const { wb, filename } = buildWorkbookRelatorio(rows);
+  XLSX.writeFile(wb, filename);
+  showToast('Excel baixado.');
+}
+function buildReportsView(){
+  const wrap = el('div',{});
+  const controls = el('div',{class:'archive-controls'},[
+    el('label',{style:'font-size:12px;font-weight:600;color:var(--muted);'},['De:']),
+    (()=>{ const inp=el('input',{type:'date', onchange:e=>{state.reportFrom=e.target.value; render();}}); inp.value=state.reportFrom; return inp; })(),
+    el('label',{style:'font-size:12px;font-weight:600;color:var(--muted);'},['Até:']),
+    (()=>{ const inp=el('input',{type:'date', onchange:e=>{state.reportTo=e.target.value; render();}}); inp.value=state.reportTo; return inp; })(),
+  ]);
+  wrap.appendChild(controls);
+
+  const rows = collectReportRows(state.reportFrom, state.reportTo);
+
+  wrap.appendChild(el('div',{style:'display:flex;justify-content:flex-end;margin:-6px 0 12px;'},[
+    el('button',{class:'primary', onclick:()=>exportReportXLSX(rows), disabled: rows.length===0},['Exportar Excel do período'])
+  ]));
+
+  if(rows.length===0){
+    wrap.appendChild(el('div',{class:'empty-state'},['Nenhum registro de rodada nesse período para esta unidade. Registros aparecem aqui depois que você clicar em "Registrar rodada" (ou "Fechar rodada de hoje") nos pacientes.']));
+    state._chartData = null;
+    return wrap;
+  }
+
+  const statsWrap = el('div',{class:'stats'});
+  statsWrap.appendChild(statCard(rows.length, 'Registros no período', ''));
+  const uniquePatients = new Set(rows.map(r=>r.p.id)).size;
+  statsWrap.appendChild(statCard(uniquePatients, 'Pacientes distintos', ''));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicatorCAMICU(rows)]), el('div',{class:'l'},['CAM-ICU positivo (delirium)']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'despertar','sim')]), el('div',{class:'l'},['Despertar realizado']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicatorTRE(rows)]), el('div',{class:'l'},['TRE realizado (entre elegíveis)']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicatorFilled(rows,'tevProfilaxia')]), el('div',{class:'l'},['Profilaxia TEV preenchida']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'protecaoGastrica','sim')]), el('div',{class:'l'},['Proteção gástrica']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'cuidadosPaliativos','sim')]), el('div',{class:'l'},['Cuidados paliativos']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'cpot','sim')]), el('div',{class:'l'},['CPOT (dor presente)']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'protecaoCornea','sim')]), el('div',{class:'l'},['Proteção córnea']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'rxAvaliado','sim')]), el('div',{class:'l'},['RX avaliado']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'higieneOral','adequada')]), el('div',{class:'l'},['Higiene oral adequada']) ]));
+  statsWrap.appendChild(el('div',{class:'stat'},[ el('div',{class:'n', style:'font-size:14px;'},[reportIndicator(rows,'lesaoPorPressao','sim')]), el('div',{class:'l'},['Lesão por pressão']) ]));
+  wrap.appendChild(statsWrap);
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:-6px 0 14px;'},[
+    'TRE só entra na conta para pacientes com Intubação Orotraqueal registrada, ou Traqueostomia associada a Ventilação Mecânica ativa. CAM-ICU conta em branco/"Não" como ausência de delirium (denominador = todos os registros). Os demais campos contam apenas os dias em que foram preenchidos — dias em branco são tratados como "não se aplica" e ficam de fora do cálculo.'
+  ]));
+
+  const chartData = { indicadores: null, atb: null, altas: null, dispositivos: null, diagnosticos: null, dieta: null, mobilizacao: null, tevTipo: null, vmModalidade: null, rass: null };
+  chartData.indicadores = {
+    labels: ['CAM-ICU +','Despertar','TRE','TEV preenchida','Proteção gástrica','Paliativos','CPOT','P. Córnea','RX avaliado','Higiene oral','Lesão pressão'],
+    values: [
+      indicatorPctCAMICU(rows), indicatorPct(rows,'despertar','sim'), indicatorPctTRE(rows),
+      indicatorFilledPct(rows,'tevProfilaxia'), indicatorPct(rows,'protecaoGastrica','sim'), indicatorPct(rows,'cuidadosPaliativos','sim'),
+      indicatorPct(rows,'cpot','sim'), indicatorPct(rows,'protecaoCornea','sim'), indicatorPct(rows,'rxAvaliado','sim'),
+      indicatorPct(rows,'higieneOral','adequada'), indicatorPct(rows,'lesaoPorPressao','sim')
+    ]
+  };
+  wrap.appendChild(el('div',{class:'chart-box'},[
+    el('div',{class:'chart-title'},['Indicadores de adesão no período (%)']),
+    el('canvas',{id:'chart-indicadores', height:'130'})
+  ]));
+
+  // ---- Distribuições categóricas (Dieta, Mobilização, TEV, VM, RASS) ----
+  function categoryDistribution(optsList, field){
+    const counts = {};
+    optsList.forEach(([v,l])=>counts[l]=0);
+    rows.forEach(r=>{ const v=r.snap[field]; if(v){ const opt=optsList.find(o=>o[0]===v); if(opt) counts[opt[1]]++; } });
+    const labels = Object.keys(counts).filter(l=>counts[l]>0);
+    return { labels, values: labels.map(l=>counts[l]) };
+  }
+  const distSections = [
+    { title:'Distribuição de Dieta', key:'dieta', opts:DIETA_OPTS, field:'dieta', color:'#0F6E6E' },
+    { title:'Distribuição de Mobilização', key:'mobilizacao', opts:MOBILIZACAO_OPTS, field:'mobilizacao', color:'#2F7D5A' },
+    { title:'Distribuição de Profilaxia TEV', key:'tevTipo', opts:TEV_OPTS, field:'tevProfilaxia', color:'#B45309' },
+    { title:'Distribuição de Modalidade de VM', key:'vmModalidade', opts:VM_MODALIDADE_OPTS, field:'ventModalidade', color:'#647079' }
+  ];
+  distSections.forEach(sec=>{
+    const dist = categoryDistribution(sec.opts, sec.field);
+    chartData[sec.key] = dist;
+    if(dist.labels.length>0){
+      wrap.appendChild(el('div',{class:'chart-box'},[
+        el('div',{class:'chart-title'},[sec.title+' (nº de registros no período)']),
+        el('canvas',{id:'chart-'+sec.key, height:'110'})
+      ]));
+    }
+  });
+  // RASS: valores fixos -5 a +5, sem usar optLabel (são os próprios números)
+  const rassCounts = {};
+  RASS_OPTS.forEach(v=>rassCounts[v]=0);
+  rows.forEach(r=>{ if(r.snap.rass && rassCounts[r.snap.rass]!==undefined) rassCounts[r.snap.rass]++; });
+  const rassLabels = RASS_OPTS.filter(v=>rassCounts[v]>0);
+  chartData.rass = { labels: rassLabels, values: rassLabels.map(v=>rassCounts[v]) };
+  if(rassLabels.length>0){
+    wrap.appendChild(el('div',{class:'chart-box'},[
+      el('div',{class:'chart-title'},['Distribuição de RASS (nº de registros no período)']),
+      el('canvas',{id:'chart-rass', height:'110'})
+    ]));
+  }
+
+  // ---- Metas atingidas ----
+  const goals = computeGoalsAchieved(state.reportFrom, state.reportTo);
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:18px 0 8px;'},['Metas atingidas no período']));
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:0 0 10px;'},[
+    'Aproximação: considera uma meta "atingida" quando ela some do campo Metas no registro seguinte, quando uma meta de dieta evolui para "em meta/alvo", ou quando uma meta de ATB passa a ter antibiótico de fato registrado. Como a comparação usa apenas os dias em que houve rodada registrada, fins de semana sem preenchimento não distorcem o cálculo. Pode incluir metas removidas por outro motivo (reescrita, descontinuada) — use como indicativo, não como medida exata.'
+  ]));
+  if(goals.length===0){
+    wrap.appendChild(el('div',{class:'empty-state', style:'padding:24px;'},['Nenhuma meta identificada como atingida nesse período.']));
+  } else {
+    wrap.appendChild(el('div',{class:'stats'},[ statCard(goals.length, 'Metas atingidas (aprox.)', 'ok') ]));
+    const goalsTableWrap = el('div',{class:'table-wrap'});
+    const gt = el('table',{});
+    const gthead = el('thead',{}); const gtrh = el('tr',{});
+    ['Paciente','Leito','Meta','Registrada em','Considerada atingida em','Motivo'].forEach(h=>gtrh.appendChild(el('th',{},[h])));
+    gthead.appendChild(gtrh); gt.appendChild(gthead);
+    const gtbody = el('tbody',{});
+    goals.forEach(g=>{
+      const tr = el('tr',{});
+      [g.nome||'—', g.leito||'—', g.meta, fmtDateBR(g.dataRegistrada), fmtDateBR(g.dataConcluida), g.motivo||'—'].forEach(c=>tr.appendChild(el('td',{},[String(c)])));
+      gtbody.appendChild(tr);
+    });
+    gt.appendChild(gtbody); goalsTableWrap.appendChild(gt); wrap.appendChild(goalsTableWrap);
+  }
+
+  // ---- Tempo de dispositivos ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Tempo de permanência de dispositivos']));
+  const devStatsWrap = el('div',{class:'stats'});
+  const devLabels = []; const devValues = [];
+  [['cvc','CVC',true],['shilley','Shilley',true],['picc','PICC',true],['pai','PAI',true],['sondaVesical','Sonda Vesical',false],['intubacaoOrotraqueal','Intubação Orotraqueal',false],['traqueostomia','Traqueostomia',false]].forEach(([key,label,requiresLocal])=>{
+    const d = computeDeviceDurations(key, requiresLocal);
+    devStatsWrap.appendChild(el('div',{class:'stat'},[
+      el('div',{class:'n', style:'font-size:16px;'},[ d.avg!==null ? d.avg+' dias' : '—' ]),
+      el('div',{class:'l'},[label+' — média (concluídos: '+d.concluded.length+', em uso: '+d.ongoing.length+')'])
+    ]));
+    devLabels.push(label); devValues.push(d.avg);
+  });
+  wrap.appendChild(devStatsWrap);
+  chartData.dispositivos = { labels: devLabels, values: devValues };
+  wrap.appendChild(el('div',{class:'chart-box'},[
+    el('div',{class:'chart-title'},['Tempo médio de permanência (dias)']),
+    el('canvas',{id:'chart-dispositivos', height:'110'})
+  ]));
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:0 0 14px;'},[
+    'Calculado pela data de inserção informada em cada dispositivo até o primeiro dia em que ele deixa de aparecer preenchido no registro. Dispositivos ainda em uso entram como "em andamento" e não contam na média (evita subestimar o tempo real).'
+  ]));
+
+  // ---- Hipóteses diagnósticas mais frequentes ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Hipóteses diagnósticas mais frequentes']));
+  const hdCounts = {};
+  const seenPatients = new Set();
+  rows.forEach(r=>{
+    if(seenPatients.has(r.p.id)) return;
+    seenPatients.add(r.p.id);
+    const norm = (r.p.hipotese||'').trim();
+    if(!norm) return;
+    const key = norm.toLowerCase();
+    if(!hdCounts[key]) hdCounts[key] = { label: norm, count: 0 };
+    hdCounts[key].count++;
+  });
+  const hdRanking = Object.values(hdCounts).sort((a,b)=>b.count-a.count);
+  if(hdRanking.length===0){
+    wrap.appendChild(el('div',{class:'empty-state', style:'padding:24px;'},['Nenhuma hipótese diagnóstica preenchida nesse período.']));
+  } else {
+    const hdTableWrap = el('div',{class:'table-wrap'});
+    const ht = el('table',{});
+    const hthead = el('thead',{}); const htrh = el('tr',{});
+    ['Hipótese Diagnóstica','Nº de pacientes'].forEach(h=>htrh.appendChild(el('th',{},[h])));
+    hthead.appendChild(htrh); ht.appendChild(hthead);
+    const htbody = el('tbody',{});
+    hdRanking.forEach(r=>{
+      const tr = el('tr',{});
+      [r.label, String(r.count)].forEach(c=>tr.appendChild(el('td',{},[c])));
+      htbody.appendChild(tr);
+    });
+    ht.appendChild(htbody); hdTableWrap.appendChild(ht); wrap.appendChild(hdTableWrap);
+    const hdTop10 = hdRanking.slice(0,10);
+    chartData.diagnosticos = { labels: hdTop10.map(r=>r.label), values: hdTop10.map(r=>r.count) };
+    wrap.appendChild(el('div',{class:'chart-box'},[
+      el('div',{class:'chart-title'},['Top 10 hipóteses diagnósticas']),
+      el('canvas',{id:'chart-diagnosticos', height:'160'})
+    ]));
+  }
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:10px 0 14px;'},[
+    'Conta 1 por paciente (não por dia de rodada), usando a hipótese diagnóstica mais recente registrada no cadastro dele. Agrupa por texto idêntico (ignorando maiúsculas/espaços) — pequenas variações de escrita (ex: "Sepse pulmonar" vs "Sepse de foco pulmonar") aparecem como itens separados. Use como indicativo, não como classificação clínica padronizada.'
+  ]));
+
+  // ---- Antibióticos mais usados ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Antibióticos mais usados no período']));
+  const atbCounts = {};
+  Object.keys(ATB_KEYWORDS).forEach(d=>atbCounts[d]=0);
+  rows.forEach(r=>{ detectAntibioticsInText(r.snap.atb).forEach(d=>atbCounts[d]++); });
+  const atbRanking = Object.keys(ATB_KEYWORDS).map(d=>({nome:d, contagem:atbCounts[d]})).filter(x=>x.contagem>0).sort((a,b)=>b.contagem-a.contagem);
+  if(atbRanking.length===0){
+    wrap.appendChild(el('div',{class:'empty-state', style:'padding:24px;'},['Nenhum antibiótico reconhecido no texto digitado nesse período.']));
+  } else {
+    const atbTableWrap = el('div',{class:'table-wrap'});
+    const at = el('table',{});
+    const athead = el('thead',{}); const atrh = el('tr',{});
+    ['Antibiótico','Nº de dias-paciente com uso'].forEach(h=>atrh.appendChild(el('th',{},[h])));
+    athead.appendChild(atrh); at.appendChild(athead);
+    const atbody = el('tbody',{});
+    atbRanking.forEach(r=>{
+      const tr = el('tr',{});
+      [r.nome, String(r.contagem)].forEach(c=>tr.appendChild(el('td',{},[c])));
+      atbody.appendChild(tr);
+    });
+    at.appendChild(atbody); atbTableWrap.appendChild(at); wrap.appendChild(atbTableWrap);
+    const top10 = atbRanking.slice(0,10);
+    chartData.atb = { labels: top10.map(r=>r.nome), values: top10.map(r=>r.contagem) };
+    wrap.appendChild(el('div',{class:'chart-box'},[
+      el('div',{class:'chart-title'},['Top 10 antibióticos mais usados']),
+      el('canvas',{id:'chart-atb', height:'160'})
+    ]));
+  }
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:10px 0 14px;'},[
+    'Contagem automática: reconhece o nome do antibiótico (ou apelidos comuns) dentro do texto digitado no campo ATB — não depende de nenhuma seleção, só do que já é escrito normalmente. Cada dia registrado com o nome mencionado conta 1 — um paciente em uso por 5 dias conta 5 vezes. Abreviações incomuns ou erros de digitação podem não ser reconhecidos.'
+  ]));
+
+  // ---- Antibióticos com data de início identificada ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Antibióticos — data de início e dias de uso']));
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:0 0 10px;'},[
+    'Lê datas escritas junto ao nome do antibiótico, no padrão "Rocefin di 07/07 + Azitro di 08/07". Quando vários antibióticos aparecem juntos com "+" e só o último tem data, todos compartilham essa mesma data. Baseado no texto atual de cada paciente (não no histórico por dia).'
+  ]));
+  const atbDatasRows = [];
+  state.patients.filter(p=>patientUnit(p)===state.currentUnit && p.atb).forEach(p=>{
+    const ref = p.status==='alta' ? (p.dataAlta||todayStr()) : todayStr();
+    parseATBSegments(p.atb, ref).forEach(seg=>{
+      const dias = seg.data ? diffDays(seg.data, ref) : null;
+      atbDatasRows.push({ nome:p.nome, leito:p.leito, antibiotico:seg.nome, dataInicio:seg.data, dias });
+    });
+  });
+  if(atbDatasRows.length===0){
+    wrap.appendChild(el('div',{class:'empty-state', style:'padding:24px;'},['Nenhuma data reconhecida no texto de ATB ainda. Use o padrão "nome di dd/mm" para aparecer aqui.']));
+  } else {
+    const adTableWrap = el('div',{class:'table-wrap'});
+    const adt = el('table',{});
+    const adthead = el('thead',{}); const adtrh = el('tr',{});
+    ['Paciente','Leito','Antibiótico (texto)','Data de início','Dias de uso'].forEach(h=>adtrh.appendChild(el('th',{},[h])));
+    adthead.appendChild(adtrh); adt.appendChild(adthead);
+    const adtbody = el('tbody',{});
+    atbDatasRows.forEach(r=>{
+      const tr = el('tr',{});
+      [r.nome||'—', r.leito||'—', r.antibiotico, r.dataInicio?fmtDateBR(r.dataInicio):'—', r.dias!==null?String(r.dias):'—'].forEach(c=>tr.appendChild(el('td',{},[c])));
+      adtbody.appendChild(tr);
+    });
+    adt.appendChild(adtbody); adTableWrap.appendChild(adt); wrap.appendChild(adTableWrap);
+  }
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:10px 0 14px;'}));
+
+  // ---- Altas por dia ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Altas por dia no período']));
+  const altasNoPeriodoLista = state.patients.filter(p=>p.status==='alta' && patientUnit(p)===state.currentUnit && p.dataAlta>=state.reportFrom && p.dataAlta<=state.reportTo);
+  const altasPorDia = {};
+  altasNoPeriodoLista.forEach(p=>{ altasPorDia[p.dataAlta] = (altasPorDia[p.dataAlta]||0) + 1; });
+  const altasDatas = Object.keys(altasPorDia).sort();
+  if(altasDatas.length===0){
+    wrap.appendChild(el('div',{class:'empty-state', style:'padding:24px;'},['Nenhuma alta registrada nesse período.']));
+  } else {
+    const tipoAltaStats = el('div',{class:'stats'});
+    TIPO_ALTA_OPTS.forEach(([v,l])=>{
+      const count = altasNoPeriodoLista.filter(p=>p.tipoAlta===v).length;
+      tipoAltaStats.appendChild(statCard(count, l, v==='obito'&&count>0?'alert':''));
+    });
+    const semTipo = altasNoPeriodoLista.filter(p=>!p.tipoAlta).length;
+    if(semTipo>0) tipoAltaStats.appendChild(statCard(semTipo, 'Sem tipo informado', 'warn'));
+    wrap.appendChild(tipoAltaStats);
+
+    const altasTableWrap = el('div',{class:'table-wrap'});
+    const att = el('table',{});
+    const atthead = el('thead',{}); const attrh = el('tr',{});
+    ['Data','Altas efetivadas'].forEach(h=>attrh.appendChild(el('th',{},[h])));
+    atthead.appendChild(attrh); att.appendChild(atthead);
+    const attbody = el('tbody',{});
+    altasDatas.forEach(d=>{
+      const tr = el('tr',{});
+      [fmtDateBR(d), String(altasPorDia[d])].forEach(c=>tr.appendChild(el('td',{},[c])));
+      attbody.appendChild(tr);
+    });
+    att.appendChild(attbody); altasTableWrap.appendChild(att); wrap.appendChild(altasTableWrap);
+    wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:10px 0 14px;'},[
+      'Total de altas efetivadas no período (clique em "Dar alta"): ' + altasDatas.reduce((s,d)=>s+altasPorDia[d],0) + '.'
+    ]));
+    chartData.altas = { labels: altasDatas.map(fmtDateBR), values: altasDatas.map(d=>altasPorDia[d]) };
+    wrap.appendChild(el('div',{class:'chart-box'},[
+      el('div',{class:'chart-title'},['Altas por dia']),
+      el('canvas',{id:'chart-altas', height:'110'})
+    ]));
+  }
+
+  // ---- Média de permanência (diárias / saídas) ----
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:20px 0 8px;'},['Tempo médio de permanência na unidade']));
+  const altasNoPeriodo = state.patients.filter(p=>p.status==='alta' && patientUnit(p)===state.currentUnit && p.dataAlta>=state.reportFrom && p.dataAlta<=state.reportTo && p.dataAdmissao);
+  const permanencias = altasNoPeriodo.map(p=>({ nome:p.nome, leito:p.leito, dataAdmissao:p.dataAdmissao, dataAlta:p.dataAlta, dias: diffDays(p.dataAdmissao, p.dataAlta) })).filter(x=>x.dias>=0);
+  const totalDiarias = permanencias.reduce((s,x)=>s+x.dias, 0);
+  const totalSaidas = permanencias.length;
+  const mediaPermanencia = totalSaidas>0 ? Math.round((totalDiarias/totalSaidas)*10)/10 : null;
+  const permStatsWrap = el('div',{class:'stats'});
+  permStatsWrap.appendChild(statCard(mediaPermanencia!==null ? mediaPermanencia+' dias' : '—', 'Média de permanência', ''));
+  permStatsWrap.appendChild(statCard(totalDiarias, 'Diárias (paciente-dia) no período', ''));
+  permStatsWrap.appendChild(statCard(totalSaidas, 'Saídas (altas) no período', ''));
+  wrap.appendChild(permStatsWrap);
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:0 0 14px;'},[
+    'Cálculo: média de permanência = total de diárias (soma dos dias de internação de cada paciente que teve alta no período) dividido pelo número de saídas (altas) no período. Considera a data de admissão até a data de alta de cada paciente; pacientes ainda internados não entram nessa média.'
+  ]));
+  if(permanencias.length>0){
+    const permTableWrap = el('div',{class:'table-wrap'});
+    const pt = el('table',{});
+    const pthead = el('thead',{}); const ptrh = el('tr',{});
+    ['Paciente','Leito','Admissão','Alta','Dias de permanência'].forEach(h=>ptrh.appendChild(el('th',{},[h])));
+    pthead.appendChild(ptrh); pt.appendChild(pthead);
+    const ptbody = el('tbody',{});
+    permanencias.sort((a,b)=>a.dataAlta.localeCompare(b.dataAlta)).forEach(x=>{
+      const tr = el('tr',{});
+      [x.nome||'—', x.leito||'—', fmtDateBR(x.dataAdmissao), fmtDateBR(x.dataAlta), String(x.dias)].forEach(c=>tr.appendChild(el('td',{},[c])));
+      ptbody.appendChild(tr);
+    });
+    pt.appendChild(ptbody); permTableWrap.appendChild(pt); wrap.appendChild(permTableWrap);
+  }
+
+  wrap.appendChild(el('h3',{style:'font-size:14px;margin:18px 0 8px;'},['Detalhe de todas as rodadas do período']));
+
+  const tableWrap = el('div',{class:'table-wrap'});
+  const table = el('table',{});
+  const thead = el('thead',{}); const trh = el('tr',{});
+  ['Data','Leito','Paciente','HD','DVA','ATB','Sedação','CAM-ICU','TRE','Profilaxia TEV','Metas do dia'].forEach(h=>trh.appendChild(el('th',{},[h])));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody',{});
+  rows.forEach(({p,snap})=>{
+    const tr = el('tr',{});
+    const cells = [
+      fmtDateBR(snap.date), p.leito||'—', p.nome||'—', snap.hipotese||'—',
+      DVA_DRUGS.filter(d=>snap.dva && snap.dva[d]).join(', ')||'—',
+      atbString(snap),
+      (SEDACAO_DRUGS.filter(d=>snap.sedacaoDrogas && snap.sedacaoDrogas[d]).join(', ')) || snap.sedacao || '—',
+      optLabel(SIMNAO_OPTS, snap.camIcu)||'—', optLabel(SIMNAO_OPTS, snap.tre)||'—', optLabel(TEV_OPTS, snap.tevProfilaxia)||'—'
+    ];
+    cells.forEach(c=>tr.appendChild(el('td',{},[String(c)])));
+    tr.appendChild(el('td',{style:'white-space:pre-line;'},[snap.metas||'—']));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); tableWrap.appendChild(table); wrap.appendChild(tableWrap);
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin-top:10px;'},[
+    'Uma linha por rodada registrada (não por paciente) — se um paciente foi revisado em 5 dias diferentes no período, ele aparece 5 vezes, uma por data. Nome e leito exibidos são os mais recentes do cadastro do paciente.'
+  ]));
+  state._chartData = chartData;
+  return wrap;
+}
+
+function buildModal(){
+  if(!state.modal) return null;
+  const overlay = el('div',{class:'overlay', onclick:(e)=>{ if(e.target===overlay){ state.modal=null; render(); } }});
+
+  if(state.modal.type==='novo'){
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Novo paciente']));
+    m.appendChild(el('p',{class:'desc'},['Adicione o paciente à rodada ativa de hoje.']));
+    const nome = el('input',{placeholder:'Nome completo'});
+    const leito = el('input',{placeholder:'Ex: 04'});
+    const hip = el('input',{placeholder:'Hipótese diagnóstica inicial'});
+    const data = el('input',{type:'date'}); data.value = todayStr();
+    const reint = el('select',{});
+    reint.appendChild(el('option',{value:''},['Não']));
+    REINT_OPTS.forEach(([v,l])=>reint.appendChild(el('option',{value:v},[l])));
+    [['Nome do paciente',nome],['Leito',leito],['Hipótese diagnóstica',hip],['Data de admissão',data],['É reinternação?',reint]].forEach(([label,input])=>{
+      m.appendChild(el('div',{class:'field'},[el('label',{},[label]), input]));
+    });
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick:()=>{
+        if(!nome.value.trim()){ showToast('Informe o nome do paciente.'); return; }
+        addPatient({nome:nome.value.trim(), leito:leito.value.trim(), hipotese:hip.value.trim(), dataAdmissao:data.value, reinternacaoTipo:reint.value});
+      }},['Adicionar'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='alta'){
+    const p = state.patients.find(x=>x.id===state.modal.id);
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Dar alta']));
+    m.appendChild(el('p',{class:'desc'},[`${p?p.nome||'Paciente':'Paciente'} sairá da lista ativa e será arquivado(a) na data escolhida.`]));
+    const data = el('input',{type:'date'}); data.value = state.modal.data;
+    const tipoAltaSel = el('select',{});
+    tipoAltaSel.appendChild(el('option',{value:''},['Selecione...']));
+    TIPO_ALTA_OPTS.forEach(([v,l])=>tipoAltaSel.appendChild(el('option',{value:v},[l])));
+    const situacao = el('textarea',{rows:'3', placeholder:'Observações da alta (opcional): transferência, motivo, detalhes...'});
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Data da alta']), data]));
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Tipo de alta']), tipoAltaSel]));
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Observações (opcional)']), situacao]));
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick:()=>{
+        if(!tipoAltaSel.value){ showToast('Selecione o tipo de alta.'); return; }
+        confirmAlta(state.modal.id, data.value, situacao.value.trim(), tipoAltaSel.value);
+      }},['Confirmar alta'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='reverter'){
+    const p = state.patients.find(x=>x.id===state.modal.id);
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Reverter alta']));
+    m.appendChild(el('p',{class:'desc'},[`${p?p.nome||'Paciente':'Paciente'} voltará para a lista de pacientes ativos.`]));
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick:()=>revertAlta(state.modal.id)},['Confirmar'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='excluirLeito'){
+    const m = el('div',{class:'modal', style:'max-width:560px;'});
+    m.appendChild(el('h2',{},['Excluir por faixa de leito']));
+    m.appendChild(el('p',{class:'desc'},[`Busca dentro da unidade atual ("${state.currentUnit}"). Exclusão é definitiva — confira a lista antes de confirmar.`]));
+    const minInput = el('input',{type:'number', placeholder:'Leito inicial (ex: 151)'});
+    const maxInput = el('input',{type:'number', placeholder:'Leito final (ex: 168)'});
+    if(state.modal.min!==undefined) minInput.value = state.modal.min;
+    if(state.modal.max!==undefined) maxInput.value = state.modal.max;
+    m.appendChild(el('div',{class:'field'},[el('label',{},['De']), minInput]));
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Até']), maxInput]));
+    m.appendChild(el('button',{onclick:()=>{
+      const min = parseInt(minInput.value,10); const max = parseInt(maxInput.value,10);
+      if(isNaN(min)||isNaN(max)){ showToast('Preencha os dois números do intervalo.'); return; }
+      state.modal.min = min; state.modal.max = max;
+      searchByBedRange(min, max);
+    }},['Buscar pacientes']));
+
+    if(state.modal.results){
+      const results = state.modal.results;
+      if(results.length===0){
+        m.appendChild(el('div',{class:'empty-state', style:'padding:16px;'},['Nenhum paciente encontrado nesse intervalo, nesta unidade.']));
+      } else {
+        m.appendChild(el('p',{style:'font-size:12px;color:var(--muted);margin:12px 0 6px;'},[`${results.length} paciente(s) encontrado(s). Desmarque quem NÃO deve ser excluído:`]));
+        const listWrap = el('div',{style:'max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:10px;'});
+        results.forEach(p=>{
+          const cb = el('input',{type:'checkbox', onchange:e=>{ if(!e.target.checked) state.modal.excluded.add(p.id); else state.modal.excluded.delete(p.id); }});
+          cb.checked = !state.modal.excluded.has(p.id);
+          listWrap.appendChild(el('label',{style:'display:flex;gap:8px;align-items:center;font-size:12.5px;padding:3px 0;'},[cb, `${p.nome||'(sem nome)'} — leito ${p.leito||'—'} — ${p.status==='alta'?'alta':'ativo'}`]));
+        });
+        m.appendChild(listWrap);
+        m.appendChild(el('button',{class:'danger-outline', onclick:bulkDeleteSelected},['Excluir selecionados definitivamente']));
+      }
+    }
+
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Fechar'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='moverTodos'){
+    const fromUnit = state.currentUnit;
+    const count = state.patients.filter(p=>patientUnit(p)===fromUnit).length;
+    const otherUnits = state.units.filter(u=>u!==fromUnit);
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Mover todos os pacientes desta unidade']));
+    if(otherUnits.length===0){
+      m.appendChild(el('p',{class:'desc'},['Não há outra unidade cadastrada para mover os pacientes. Crie uma nova unidade primeiro.']));
+      m.appendChild(el('div',{class:'modal-actions'},[ el('button',{onclick:()=>{state.modal=null; render();}},['Fechar']) ]));
+    } else {
+      m.appendChild(el('p',{class:'desc'},[`Mover todos os ${count} paciente(s) de "${fromUnit}" para outra unidade (ativos e do arquivo de altas).`]));
+      const sel = el('select',{});
+      otherUnits.forEach(u=>{ sel.appendChild(el('option',{value:u},[u])); });
+      m.appendChild(el('div',{class:'field'},[el('label',{},['Unidade de destino']), sel]));
+      const actions = el('div',{class:'modal-actions'},[
+        el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+        el('button',{class:'primary', onclick:()=>moveAllPatients(fromUnit, sel.value)},['Mover todos'])
+      ]);
+      m.appendChild(actions);
+    }
+    overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='obitosIntegracao'){
+    const cfg = getObitosIntegrationConfig();
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Integração com o app de Óbitos']));
+    m.appendChild(el('p',{class:'desc'},['Quando você marcar "Alta Óbito", cadastrar uma reinternação, ou ativar o Protocolo Sepse, os dados são enviados automaticamente pro app de Óbitos. Configurando aqui uma vez, já sincroniza para todos os aparelhos (não precisa repetir em cada navegador). Peça ao responsável pelo app de Óbitos a URL do site e a chave de integração (configurada lá como IMPORT_API_KEY).']));
+    const urlInput = el('input',{placeholder:'https://obitos-uti-hsf.netlify.app'});
+    const keyInput = el('input',{placeholder:'Chave de integração (IMPORT_API_KEY)'});
+    if(cfg){ urlInput.value = cfg.url; keyInput.value = cfg.key; }
+    m.appendChild(el('div',{class:'field'},[el('label',{},['URL do app de Óbitos']), urlInput]));
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Chave de integração']), keyInput]));
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick: async ()=>{
+        if(!urlInput.value.trim() || !keyInput.value.trim()){ showToast('Preencha a URL e a chave.'); return; }
+        await saveObitosIntegrationConfig(urlInput.value.trim(), keyInput.value.trim());
+        state.modal=null; render();
+        showToast('Integração configurada e sincronizada — já vale para todos os aparelhos.');
+      }},['Salvar'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='mudarUnidade'){
+    const p = state.patients.find(x=>x.id===state.modal.id);
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Mudar unidade']));
+    m.appendChild(el('p',{class:'desc'},[`Mover ${p?p.nome||'este paciente':'este paciente'} (atualmente em "${p?p.unidade||'—':''}") para outra unidade.`]));
+    const sel = el('select',{});
+    state.units.forEach(u=>{ const o = el('option',{value:u},[u]); if(p && p.unidade===u) o.setAttribute('selected','selected'); sel.appendChild(o); });
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Nova unidade']), sel]));
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick:()=>moveToUnit(state.modal.id, sel.value)},['Mover paciente'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+
+  if(state.modal.type==='novaUnidade'){
+    const m = el('div',{class:'modal'});
+    m.appendChild(el('h2',{},['Nova UTI / unidade']));
+    m.appendChild(el('p',{class:'desc'},['Crie uma unidade separada (ex: UTI 2, UTI Cardio, UTI Pediátrica). Os pacientes de cada unidade ficam completamente separados.']));
+    const nameInput = el('input',{placeholder:'Nome da unidade'});
+    m.appendChild(el('div',{class:'field'},[el('label',{},['Nome']), nameInput]));
+    const actions = el('div',{class:'modal-actions'},[
+      el('button',{onclick:()=>{state.modal=null; render();}},['Cancelar']),
+      el('button',{class:'primary', onclick:()=>addUnit(nameInput.value)},['Criar e usar'])
+    ]);
+    m.appendChild(actions); overlay.appendChild(m);
+  }
+  return overlay;
+}
+
+// ---- Safety Huddle: checklist diário de metas por leito ----
+function getHuddleChecked(p){
+  if(p.huddleDate !== todayStr()) return {};
+  return p.huddleChecked || {};
+}
+function toggleHuddleGoal(patientId, lineKey){
+  const p = state.patients.find(x=>x.id===patientId); if(!p) return;
+  const checked = Object.assign({}, getHuddleChecked(p));
+  checked[lineKey] = !checked[lineKey];
+  p.huddleChecked = checked;
+  p.huddleDate = todayStr();
+  savePatient(p);
+  render();
+}
+// ---- Dashboard Executivo: comparação entre unidades ----
+const DASHBOARD_METRICS = [
+  ['Pacientes ativos hoje', u=>String(u.ativos)],
+  ['Taxa de ocupação', u=>u.taxaOcup!==null?u.taxaOcup+'%':'—'],
+  ['CAM-ICU positivo (%)', u=>u.camIcu!==null?u.camIcu+'%':'—'],
+  ['TRE realizado (%)', u=>u.tre!==null?u.tre+'%':'—'],
+  ['Profilaxia TEV preenchida (%)', u=>u.tev!==null?u.tev+'%':'—'],
+  ['Proteção gástrica (%)', u=>u.gastrica!==null?u.gastrica+'%':'—'],
+  ['Altas no período', u=>String(u.altas)],
+  ['Média de permanência (dias)', u=>u.mediaPerm!==null?String(u.mediaPerm):'—'],
+  ['Média CVC (dias)', u=>u.cvcMedia!==null?String(u.cvcMedia):'—']
+];
+function computeUnitDashboardData(){
+  return state.units.map(u=>{
+    const rows = collectReportRows(state.reportFrom, state.reportTo, u);
+    const ativos = state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===u);
+    const total = state.bedCounts[u] || 0;
+    const ocupados = ativos.length;
+    const taxaOcup = total>0 ? Math.round((ocupados/total)*100) : null;
+    const altasNoPeriodo = state.patients.filter(p=>p.status==='alta' && patientUnit(p)===u && p.dataAlta>=state.reportFrom && p.dataAlta<=state.reportTo && p.dataAdmissao);
+    const permanencias = altasNoPeriodo.map(p=>diffDays(p.dataAdmissao,p.dataAlta)).filter(d=>d>=0);
+    const mediaPerm = permanencias.length ? Math.round((permanencias.reduce((s,d)=>s+d,0)/permanencias.length)*10)/10 : null;
+    const cvcDur = computeDeviceDurations('cvc', true, u);
+    return {
+      unit: u, ativos: ocupados, totalLeitos: total, taxaOcup,
+      camIcu: indicatorPctCAMICU(rows), tre: indicatorPctTRE(rows),
+      tev: indicatorFilledPct(rows,'tevProfilaxia'), gastrica: indicatorPct(rows,'protecaoGastrica','sim'),
+      altas: altasNoPeriodo.length, mediaPerm, cvcMedia: cvcDur.avg
+    };
+  });
+}
+function buildDashboardView(){
+  const wrap = el('div',{});
+  wrap.appendChild(el('p',{style:'font-size:12px;color:var(--muted);margin-bottom:10px;'},[
+    'Comparação lado a lado de todas as unidades, no período de '+fmtDateBR(state.reportFrom)+' a '+fmtDateBR(state.reportTo)+' (o mesmo período selecionado na aba Relatórios).'
+  ]));
+  const perUnit = computeUnitDashboardData();
+  const tableWrap = el('div',{class:'table-wrap'});
+  const table = el('table',{});
+  const thead = el('thead',{}); const trh = el('tr',{});
+  trh.appendChild(el('th',{},['Indicador']));
+  perUnit.forEach(u=>trh.appendChild(el('th',{},[u.unit])));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody',{});
+  DASHBOARD_METRICS.forEach(([label, getter])=>{
+    const tr = el('tr',{});
+    tr.appendChild(el('td',{style:'font-weight:600;'},[label]));
+    perUnit.forEach(u=>tr.appendChild(el('td',{},[getter(u)])));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); tableWrap.appendChild(table); wrap.appendChild(tableWrap);
+
+  wrap.appendChild(el('div',{style:'margin:14px 0;'},[
+    el('button',{class:'primary', onclick:()=>exportDashboardPDF(perUnit)},['🖨 Exportar PDF para reunião'])
+  ]));
+
+  wrap.appendChild(el('div',{class:'chart-box'},[
+    el('div',{class:'chart-title'},['Taxa de ocupação por unidade (%)']),
+    el('canvas',{id:'chart-dashboard-ocup', height:'110'})
+  ]));
+  state._dashboardChartData = { labels: perUnit.map(u=>u.unit), values: perUnit.map(u=>u.taxaOcup) };
+  return wrap;
+}
+function renderDashboardCharts(){
+  const data = state._dashboardChartData;
+  if(!data || typeof Chart==='undefined') return;
+  makeBarChart('chart-dashboard-ocup', data.labels, data.values.map(v=>v===null?0:v), '#0F6E6E', false);
+}
+function exportDashboardPDF(perUnit){
+  const rowsHtml = DASHBOARD_METRICS.map(([label,getter])=>{
+    return `<tr><td><b>${label}</b></td>` + perUnit.map(u=>`<td>${getter(u)}</td>`).join('') + `</tr>`;
+  }).join('');
+  const headerCols = perUnit.map(u=>`<th>${u.unit}</th>`).join('');
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Dashboard Executivo - ${fmtDateBR(todayStr())}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:24px;}
+    h2{margin:0 0 2px;font-size:18px;}
+    .sub{font-size:12px;color:#555;margin-bottom:14px;}
+    .print-btn{margin-bottom:16px;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #0F6E6E;background:#0F6E6E;color:#fff;cursor:pointer;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{border:1px solid #999;padding:7px 9px;font-size:12.5px;text-align:left;vertical-align:top;}
+    th{background:#eee;}
+    @media print{ .print-btn{display:none;} body{margin:8mm;} }
+  </style></head>
+  <body>
+    <button class="print-btn" onclick="window.print()">Imprimir / Salvar em PDF</button>
+    <h2>Dashboard Executivo — Comparação entre Unidades</h2>
+    <div class="sub">Período: ${fmtDateBR(state.reportFrom)} a ${fmtDateBR(state.reportTo)} · Gerado em ${fmtDateBR(todayStr())}</div>
+    <table>
+      <thead><tr><th>Indicador</th>${headerCols}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </body></html>`;
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  showToast('Abrindo o dashboard em uma nova aba para impressão/PDF...');
+}
+
+function buildHuddleView(){
+  const wrap = el('div',{});
+  const ativos = sortByLeito(state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit));
+  let totalMetas=0, totalChecadas=0;
+  ativos.forEach(p=>{
+    const linhas = (p.metas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    const checked = getHuddleChecked(p);
+    totalMetas += linhas.length;
+    totalChecadas += linhas.filter((_,i)=>checked[String(i)]).length;
+  });
+  const statsWrap = el('div',{class:'stats'});
+  statsWrap.appendChild(statCard(totalChecadas+' de '+totalMetas, 'Metas validadas hoje', ''));
+  wrap.appendChild(statsWrap);
+  wrap.appendChild(el('p',{style:'font-size:12px;color:var(--muted);margin-bottom:14px;'},[
+    'As metas vêm automaticamente do campo "Metas do dia" de cada paciente ativo, organizadas por leito. Marque as que foram atingidas ao longo do dia, para validar na rodada da tarde. O checklist reinicia sozinho a cada novo dia.'
+  ]));
+  if(ativos.length===0){
+    wrap.appendChild(el('div',{class:'empty-state'},['Nenhum paciente ativo nesta unidade.']));
+    return wrap;
+  }
+  ativos.forEach(p=>{
+    const linhas = (p.metas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    const checked = getHuddleChecked(p);
+    const card = el('div',{class:'huddle-card'});
+    card.appendChild(el('div',{class:'huddle-header'},['Leito '+(p.leito||'—')+' — '+(p.nome||'(sem nome)')]));
+    if(linhas.length===0){
+      card.appendChild(el('div',{style:'font-size:12px;color:var(--muted);padding:4px 0;'},['Nenhuma meta registrada para hoje.']));
+    } else {
+      linhas.forEach((linha, idx)=>{
+        const isChecked = !!checked[String(idx)];
+        const cb = el('input',{type:'checkbox', onchange:()=>toggleHuddleGoal(p.id, String(idx))});
+        cb.checked = isChecked;
+        card.appendChild(el('label',{class:'huddle-goal'+(isChecked?' done':'')},[cb, linha]));
+      });
+    }
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
+function buildLeitosView(){
+  const wrap = el('div',{});
+  const total = state.bedCounts[state.currentUnit] || 10;
+  const ativos = state.patients.filter(p=>p.status==='ativo' && patientUnit(p)===state.currentUnit);
+
+  // Configuração do total de leitos
+  const configRow = el('div',{style:'display:flex;align-items:center;gap:10px;margin-bottom:14px;'});
+  configRow.appendChild(el('span',{style:'font-size:12px;color:var(--muted);font-weight:600;'},['Total de leitos nesta unidade:']));
+  const totalInput = el('input',{type:'number', min:'1', style:'width:70px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:13px;'});
+  totalInput.value = total;
+  totalInput.addEventListener('change', ()=>{
+    const v = parseInt(totalInput.value,10);
+    if(isNaN(v) || v<1){ showToast('Informe um número válido de leitos.'); return; }
+    state.bedCounts[state.currentUnit] = v;
+    saveBedCounts();
+    render();
+  });
+  configRow.appendChild(totalInput);
+  wrap.appendChild(configRow);
+
+  // Monta o mapa: leito -> paciente (usando normalização, aceitando "1" e "01" como o mesmo)
+  const byBed = {};
+  const semLeitoValido = [];
+  const duplicados = {};
+  ativos.forEach(p=>{
+    const n = normalizeLeito(p.leito);
+    if(n===null || n<1 || n>total){ semLeitoValido.push(p); return; }
+    if(byBed[n]){
+      duplicados[n] = duplicados[n] || [byBed[n]];
+      duplicados[n].push(p);
+    } else {
+      byBed[n] = p;
+    }
+  });
+  const ocupados = Object.keys(byBed).length;
+  const taxaOcupacao = total>0 ? Math.round((ocupados/total)*100) : 0;
+
+  const statsWrap = el('div',{class:'stats'});
+  statsWrap.appendChild(statCard(ocupados+' de '+total, 'Leitos ocupados', ''));
+  statsWrap.appendChild(statCard(taxaOcupacao+'%', 'Taxa de ocupação', taxaOcupacao>=90?'alert':(taxaOcupacao>=70?'warn':'ok')));
+  statsWrap.appendChild(statCard(total-ocupados, 'Leitos vagos', ''));
+  wrap.appendChild(statsWrap);
+
+  const grid = el('div',{class:'bed-grid'});
+  for(let n=1; n<=total; n++){
+    const p = byBed[n];
+    if(p){
+      const days = p.dataAdmissao ? diffDays(p.dataAdmissao, todayStr()) : null;
+      const badges = [];
+      if(p.camIcu==='sim') badges.push(el('span',{class:'chip-static', style:'background:var(--danger-tint);color:var(--danger);'},['Delirium']));
+      if(p.ventModalidade && p.ventModalidade!=='nao_se_aplica') badges.push(el('span',{class:'chip-static'},['VM']));
+      if(p.cuidadosPaliativos==='sim') badges.push(el('span',{class:'chip-static', style:'background:#EFE7F7;color:#5B4B8A;'},['Paliativo']));
+      const devAlertDays = ['cvc','shilley','pai'].some(k=>{
+        const d = p[k];
+        if(!d || !d.local || !d.data) return false;
+        return diffDays(d.data, todayStr()) >= 7;
+      });
+      if(devAlertDays) badges.push(el('span',{class:'alert-tag'},['⚠️ Dispositivo ≥7d']));
+
+      const dvaTxt = dvaString(p);
+      const sedTxt = sedacaoString(p);
+      const dietaTxt = optLabel(DIETA_OPTS, p.dieta) || '—';
+      const atbTxt = p.atb ? (p.atb.length>50 ? p.atb.slice(0,50)+'…' : p.atb) : '—';
+      const dispositivos = [];
+      if(p.cvc && p.cvc.local) dispositivos.push('CVC'+(p.cvc.data?' ('+diffDays(p.cvc.data,todayStr())+'d)':''));
+      if(p.shilley && p.shilley.local) dispositivos.push('Shilley'+(p.shilley.data?' ('+diffDays(p.shilley.data,todayStr())+'d)':''));
+      if(p.picc && p.picc.local) dispositivos.push('PICC'+(p.picc.data?' ('+diffDays(p.picc.data,todayStr())+'d)':''));
+      if(p.pai && p.pai.local) dispositivos.push('PAI'+(p.pai.data?' ('+diffDays(p.pai.data,todayStr())+'d)':''));
+      if(p.sondaVesical && p.sondaVesical.data) dispositivos.push('SVD ('+diffDays(p.sondaVesical.data,todayStr())+'d)');
+      if(p.intubacaoOrotraqueal && p.intubacaoOrotraqueal.data) dispositivos.push('TOT ('+diffDays(p.intubacaoOrotraqueal.data,todayStr())+'d)');
+      if(p.traqueostomia && p.traqueostomia.data) dispositivos.push('TQT ('+diffDays(p.traqueostomia.data,todayStr())+'d)');
+      const metasLinhas = (p.metas||'').split('\n').map(s=>s.trim()).filter(Boolean);
+
+      const infoRow = (label, value) => el('div',{class:'bed-row'},[
+        el('span',{class:'bed-row-label'},[label]), el('span',{class:'bed-row-value'},[value||'—'])
+      ]);
+
+      const card = el('div',{class:'bed-card ocupado'},[
+        el('div',{class:'bed-num'},['Leito '+n]),
+        el('div',{class:'bed-nome'},[p.nome||'(sem nome)']),
+        el('div',{class:'bed-info', style:'margin-bottom:4px;'},[
+          (p.hipotese ? (p.hipotese.length>40?p.hipotese.slice(0,40)+'…':p.hipotese) : '—') +
+          (days!==null ? '  ·  '+days+(days===1?' dia':' dias') : '')
+        ]),
+        infoRow('DVA', dvaTxt),
+        infoRow('Sedação', sedTxt),
+        infoRow('Dieta', dietaTxt),
+        infoRow('ATB', atbTxt),
+        infoRow('Dispositivos', dispositivos.length ? dispositivos.join(', ') : '—'),
+        infoRow('Metas', metasLinhas.length ? metasLinhas.join(' • ') : '—'),
+        el('div',{style:'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;'}, badges)
+      ]);
+      grid.appendChild(card);
+    } else {
+      grid.appendChild(el('div',{class:'bed-card vago'},[
+        el('div',{class:'bed-num'},['Leito '+n]),
+        el('div',{class:'bed-info', style:'font-weight:600;color:var(--muted);'},['VAGO'])
+      ]));
+    }
+  }
+  wrap.appendChild(grid);
+
+  if(Object.keys(duplicados).length>0){
+    wrap.appendChild(el('h3',{style:'font-size:13px;margin:18px 0 8px;color:var(--danger);'},['⚠️ Mais de um paciente no mesmo leito']));
+    Object.entries(duplicados).forEach(([n, list])=>{
+      wrap.appendChild(el('p',{style:'font-size:12.5px;margin:2px 0;'},[`Leito ${n}: `+list.map(p=>p.nome||'(sem nome)').join(', ')]));
+    });
+  }
+  if(semLeitoValido.length>0){
+    wrap.appendChild(el('h3',{style:'font-size:13px;margin:18px 0 8px;color:var(--amber);'},['⚠️ Pacientes com leito fora do intervalo configurado ou não numérico']));
+    semLeitoValido.forEach(p=>{
+      wrap.appendChild(el('p',{style:'font-size:12.5px;margin:2px 0;'},[`${p.nome||'(sem nome)'} — leito digitado: "${p.leito||''}"`]));
+    });
+  }
+
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin-top:14px;'},[
+    'O app entende "1", "01" e variações como o mesmo leito. A taxa de ocupação usa o total de leitos configurado acima, comparado aos pacientes ativos com leito dentro desse intervalo.'
+  ]));
+  return wrap;
+}
+
+function buildDiagnosticoView(){
+  const wrap = el('div',{});
+  wrap.appendChild(el('p',{style:'font-size:12px;color:var(--muted);margin-bottom:12px;'},[
+    'Lista TODOS os pacientes salvos no banco, de TODAS as unidades, sem nenhum filtro. Total encontrado: ' + state.patients.length + '.'
+  ]));
+
+  // Resumo: unidades cadastradas vs valores realmente gravados nos pacientes
+  const counts = {};
+  state.patients.forEach(p=>{ const u = patientUnit(p); counts[u] = (counts[u]||0)+1; });
+  const allUnitNames = new Set([...state.units, ...Object.keys(counts)]);
+  wrap.appendChild(el('h3',{style:'font-size:13px;margin:0 0 8px;'},['Resumo por unidade']));
+  const summaryWrap = el('div',{class:'table-wrap', style:'margin-bottom:16px;'});
+  const st = el('table',{});
+  const sthead = el('thead',{}); const strh = el('tr',{});
+  ['Nome da unidade','Cadastrada no seletor?','Pacientes encontrados com esse valor'].forEach(h=>strh.appendChild(el('th',{},[h])));
+  sthead.appendChild(strh); st.appendChild(sthead);
+  const stbody = el('tbody',{});
+  [...allUnitNames].sort().forEach(name=>{
+    const tr = el('tr',{});
+    [JSON.stringify(name), state.units.includes(name)?'Sim':'NÃO (órfã)', String(counts[name]||0)].forEach((c,i)=>{
+      const td = el('td',{},[c]);
+      if(i===1 && !state.units.includes(name)) td.style.color = 'var(--danger)';
+      tr.appendChild(td);
+    });
+    stbody.appendChild(tr);
+  });
+  st.appendChild(stbody); summaryWrap.appendChild(st); wrap.appendChild(summaryWrap);
+  wrap.appendChild(el('p',{style:'font-size:11.5px;color:var(--muted);margin:0 0 16px;'},[
+    'Se uma linha aparecer como "NÃO (órfã)", significa que existem pacientes gravados com esse nome de unidade, mas ele não está mais na lista do seletor — clique em "+ Nova UTI" e digite o nome EXATAMENTE igual ao mostrado aqui (entre aspas) para recuperá-los na tela.'
+  ]));
+
+  const tableWrap = el('div',{class:'table-wrap'});
+  const table = el('table',{});
+  const thead = el('thead',{}); const trh = el('tr',{});
+  ['Nome','Leito','Unidade (valor gravado)','Status','Data alta','Última atualização'].forEach(h=>trh.appendChild(el('th',{},[h])));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody',{});
+  state.patients.forEach(p=>{
+    const tr = el('tr',{});
+    [p.nome||'—', p.leito||'—', JSON.stringify(p.unidade), p.status||'—', fmtDateBR(p.dataAlta), fmtDateBR(p.ultimaAtualizacao)].forEach(c=>tr.appendChild(el('td',{},[String(c)])));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); tableWrap.appendChild(table); wrap.appendChild(tableWrap);
+  return wrap;
+}
+
+function buildUnitSwitcher(){
+  const wrap = el('div',{style:'display:flex;align-items:center;gap:8px;'});
+  const sel = el('select',{style:'font-family:inherit;font-size:13px;font-weight:600;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--teal-dark);', onchange:e=>switchUnit(e.target.value)});
+  state.units.forEach(u=>{ const o=el('option',{value:u},[u]); if(u===state.currentUnit) o.setAttribute('selected','selected'); sel.appendChild(o); });
+  wrap.appendChild(el('span',{style:'font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;'},['Unidade']));
+  wrap.appendChild(sel);
+  wrap.appendChild(el('button',{class:'ghost', onclick:()=>{state.modal={type:'novaUnidade'}; render();}},['+ Nova UTI']));
+  wrap.appendChild(el('button',{class:'ghost', onclick:()=>removeUnit(state.currentUnit)},['🗑 Remover UTI atual']));
+  wrap.appendChild(el('button',{class:'ghost', onclick:()=>{state.modal={type:'moverTodos'}; render();}},['↔️ Mover todos daqui']));
+  wrap.appendChild(el('button',{class:'ghost', style:'color:var(--danger);', onclick:()=>{state.modal={type:'excluirLeito', results:null, excluded:new Set()}; render();}},['🗑 Excluir por faixa de leito']));
+  wrap.appendChild(el('button',{class:'primary', onclick:exportFullBackupXLSX},['💾 Backup completo (todas unidades)']));
+  return wrap;
+}
+function buildUnitSwitcherReadOnly(){
+  const wrap = el('div',{style:'display:flex;align-items:center;gap:8px;'});
+  const sel = el('select',{style:'font-family:inherit;font-size:13px;font-weight:600;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--teal-dark);', onchange:e=>switchUnit(e.target.value)});
+  state.units.forEach(u=>{ const o=el('option',{value:u},[u]); if(u===state.currentUnit) o.setAttribute('selected','selected'); sel.appendChild(o); });
+  wrap.appendChild(el('span',{style:'font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;'},['Unidade']));
+  wrap.appendChild(sel);
+  return wrap;
+}
+
+function buildConnectionStatus(){
+  const isOnline = navigator.onLine;
+  return el('div',{style:'display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;'+(isOnline?'color:var(--green);':'color:var(--amber);')},[
+    isOnline ? '🟢 Online' : '🟠 Offline — salvando localmente, sincroniza quando voltar a internet'
+  ]);
+}
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  if(isHuddleOnly()){
+    const topbar = el('div',{class:'topbar'},[
+      el('div',{class:'brand'},[
+        el('div',{class:'brand-mark'},['UTI']),
+        el('div',{},[ el('h1',{},['Safety Huddle']), el('div',{class:'sub mono'},[fmtDateBR(todayStr())+' · acesso restrito']) ])
+      ]),
+      buildConnectionStatus(),
+      buildUnitSwitcherReadOnly(),
+      el('button',{class:'ghost', onclick:()=>{ try{sessionStorage.removeItem(HUDDLE_ONLY_SS_KEY);}catch(e){} showLockScreen(); }},['🔒 Entrar com senha (acesso completo)'])
+    ]);
+    app.appendChild(topbar);
+    if(state.loading){ app.appendChild(el('div',{class:'empty-state'},['Carregando dados salvos...'])); }
+    else { app.appendChild(buildHuddleView()); }
+    app.appendChild(el('footer',{class:'note'},[
+      'Modo restrito: só o Safety Huddle está disponível sem senha. Para acessar pacientes, relatórios ou qualquer outra tela, use "Entrar com senha".'
+    ]));
+    return;
+  }
+
+  const topbar = el('div',{class:'topbar'},[
+    el('div',{class:'brand'},[
+      el('div',{class:'brand-mark'},['UTI']),
+      el('div',{},[ el('h1',{},['Rodada Multidisciplinar']), el('div',{class:'sub mono'},[fmtDateBR(todayStr())+' · v2026-07-07-integracao-sincronizada']) ])
+    ]),
+    buildConnectionStatus(),
+    buildUnitSwitcher(),
+    el('div',{style:'display:flex;gap:6px;'},[
+      el('button',{class:'ghost', onclick:()=>{state.modal={type:'obitosIntegracao'}; render();}},['🔗 Integração Óbitos']),
+      el('button',{class:'ghost', onclick:lockApp},['🔒 Bloquear agora']),
+      el('button',{class:'ghost', onclick:changeAppPassword},['🔑 Trocar senha'])
+    ])
+  ]);
+  app.appendChild(topbar);
+  app.appendChild(buildStats());
+  const tabs = el('div',{class:'tabs'},[
+    el('button',{class:'tab'+(state.view==='ativos'?' active':''), onclick:()=>{state.view='ativos'; render();}},['Pacientes ativos']),
+    el('button',{class:'tab'+(state.view==='leitos'?' active':''), onclick:()=>{state.view='leitos'; render();}},['🛏️ Mapa de Leitos']),
+    el('button',{class:'tab'+(state.view==='huddle'?' active':''), onclick:()=>{state.view='huddle'; render();}},['🤝 Safety Huddle']),
+    el('button',{class:'tab'+(state.view==='arquivo'?' active':''), onclick:()=>{state.view='arquivo'; render();}},['Arquivo de altas']),
+    el('button',{class:'tab'+(state.view==='relatorios'?' active':''), onclick:()=>{state.view='relatorios'; render();}},['Relatórios']),
+    el('button',{class:'tab'+(state.view==='dashboard'?' active':''), onclick:()=>{state.view='dashboard'; render();}},['📊 Dashboard Executivo']),
+    el('button',{class:'tab'+(state.view==='diagnostico'?' active':''), onclick:()=>{state.view='diagnostico'; render();}},['🔍 Diagnóstico'])
+  ]);
+  app.appendChild(tabs);
+  if(state.loading){ app.appendChild(el('div',{class:'empty-state'},['Carregando dados salvos...'])); }
+  else if(state.view==='ativos'){ app.appendChild(buildActiveView()); }
+  else if(state.view==='leitos'){ app.appendChild(buildLeitosView()); }
+  else if(state.view==='huddle'){ app.appendChild(buildHuddleView()); }
+  else if(state.view==='arquivo'){ app.appendChild(buildArchiveView()); }
+  else if(state.view==='diagnostico'){ app.appendChild(buildDiagnosticoView()); }
+  else if(state.view==='dashboard'){ app.appendChild(buildDashboardView()); }
+  else { app.appendChild(buildReportsView()); }
+  app.appendChild(el('footer',{class:'note'},[
+    'Os dados ficam salvos automaticamente entre as sessões, e o que foi preenchido continua disponível nos dias seguintes até você atualizar. Use "Exportar Excel" para salvar uma cópia (.xlsx) na sua pasta do OneDrive, ou "Imprimir resumo" para uma folha só com nome, leito, ATB, DVA, sedação e metas. ',
+    'Este app não substitui o prontuário oficial do paciente. Os dados ficam salvos no banco de dados do Firebase configurado por você — por padrão, sem login/autenticação, qualquer pessoa com o link do app e acesso ao mesmo projeto Firebase pode ler ou alterar os dados. Não possui garantias de segurança/LGPD para dados de saúde nessa configuração inicial — use como apoio de rodada, não como registro definitivo, e considere adicionar autenticação no Firebase antes de usar com dados reais de pacientes.'
+  ]));
+  const modal = buildModal();
+  if(modal) app.appendChild(modal);
+  if(state.view==='relatorios' && !state.loading){ renderReportCharts(); }
+  if(state.view==='dashboard' && !state.loading){ renderDashboardCharts(); }
+}
+
+let chartInstances = [];
+function destroyCharts(){
+  chartInstances.forEach(c=>{ try{ c.destroy(); }catch(e){} });
+  chartInstances = [];
+}
+function makeBarChart(canvasId, labels, values, color, horizontal){
+  const el2 = document.getElementById(canvasId);
+  if(!el2 || typeof Chart==='undefined') return;
+  const chart = new Chart(el2.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: color||'#0F6E6E', borderRadius:4 }] },
+    options: {
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive: true,
+      plugins: { legend: { display:false } },
+      scales: { x:{ beginAtZero:true }, y:{ beginAtZero:true } }
+    }
+  });
+  chartInstances.push(chart);
+}
+function renderReportCharts(){
+  destroyCharts();
+  const data = state._chartData;
+  if(!data) return;
+  if(typeof Chart==='undefined'){
+    document.querySelectorAll('.chart-box').forEach(box=>{
+      box.innerHTML = '<div style="font-size:11.5px;color:var(--amber);">Não consegui carregar a biblioteca de gráficos agora (verifique a conexão com a internet) — os números continuam disponíveis nas tabelas acima.</div>';
+    });
+    return;
+  }
+  if(data.indicadores) makeBarChart('chart-indicadores', data.indicadores.labels, data.indicadores.values.map(v=>v===null?0:v), '#0F6E6E', false);
+  if(data.diagnosticos && data.diagnosticos.labels.length) makeBarChart('chart-diagnosticos', data.diagnosticos.labels, data.diagnosticos.values, '#5B4B8A', true);
+  if(data.atb && data.atb.labels.length) makeBarChart('chart-atb', data.atb.labels, data.atb.values, '#B45309', true);
+  if(data.altas && data.altas.labels.length) makeBarChart('chart-altas', data.altas.labels, data.altas.values, '#2F7D5A', false);
+  if(data.dispositivos) makeBarChart('chart-dispositivos', data.dispositivos.labels, data.dispositivos.values.map(v=>v===null?0:v), '#647079', false);
+  if(data.dieta && data.dieta.labels.length) makeBarChart('chart-dieta', data.dieta.labels, data.dieta.values, '#0F6E6E', false);
+  if(data.mobilizacao && data.mobilizacao.labels.length) makeBarChart('chart-mobilizacao', data.mobilizacao.labels, data.mobilizacao.values, '#2F7D5A', false);
+  if(data.tevTipo && data.tevTipo.labels.length) makeBarChart('chart-tevTipo', data.tevTipo.labels, data.tevTipo.values, '#B45309', false);
+  if(data.vmModalidade && data.vmModalidade.labels.length) makeBarChart('chart-vmModalidade', data.vmModalidade.labels, data.vmModalidade.values, '#647079', false);
+  if(data.rass && data.rass.labels.length) makeBarChart('chart-rass', data.rass.labels, data.rass.values, '#5B4B8A', false);
+}
+
+// ---- Tela de senha simples (trava de tela, não é autenticação de verdade) ----
+const LOCK_LS_KEY = 'uti_app_password';
+const LOCK_SS_KEY = 'uti_app_unlocked';
+const HUDDLE_ONLY_SS_KEY = 'uti_huddle_only';
+function isHuddleOnly(){
+  try{ return sessionStorage.getItem(HUDDLE_ONLY_SS_KEY)==='1' && !isUnlocked(); }catch(e){ return false; }
+}
+const AUTO_LOCK_MINUTES = 10;
+let inactivityTimer = null;
+let inactivityListenersAttached = false;
+
+function hasPasswordSet(){
+  try{ return !!localStorage.getItem(LOCK_LS_KEY); }catch(e){ return false; }
+}
+function isUnlocked(){
+  try{ return sessionStorage.getItem(LOCK_SS_KEY)==='1'; }catch(e){ return false; }
+}
+function lockApp(){
+  try{ sessionStorage.removeItem(LOCK_SS_KEY); sessionStorage.removeItem(HUDDLE_ONLY_SS_KEY); }catch(e){}
+  showLockScreen();
+}
+function resetInactivityTimer(){
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(lockApp, AUTO_LOCK_MINUTES*60000);
+}
+function attachInactivityListeners(){
+  if(inactivityListenersAttached) return;
+  inactivityListenersAttached = true;
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(evt=>{
+    window.addEventListener(evt, resetInactivityTimer, {passive:true});
+  });
+}
+function changeAppPassword(){
+  const atual = hasPasswordSet() ? prompt('Digite a senha atual:') : null;
+  if(hasPasswordSet()){
+    try{ if(atual !== localStorage.getItem(LOCK_LS_KEY)){ showToast('Senha atual incorreta.'); return; } }catch(e){}
+  }
+  const nova = prompt('Digite a nova senha:');
+  if(!nova){ return; }
+  try{ localStorage.setItem(LOCK_LS_KEY, nova); }catch(e){}
+  showToast('Senha alterada com sucesso.');
+}
+function showLockScreen(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  const isSetup = !hasPasswordSet();
+  const box = document.createElement('div');
+  box.style.cssText = 'max-width:400px;margin:80px auto;background:#fff;border:1px solid #E2E7EA;border-radius:14px;padding:28px;font-family:Arial,sans-serif;text-align:center;';
+  box.innerHTML = `
+    <div style="font-size:32px;margin-bottom:6px;">🔒</div>
+    <h1 style="font-size:17px;margin:0 0 6px;color:#1F2937;">${isSetup ? 'Criar senha de acesso' : 'App bloqueado'}</h1>
+    <p style="color:#647079;font-size:12.5px;line-height:1.5;margin:0 0 16px;">
+      ${isSetup ? 'Defina uma senha para proteger a tela neste computador. Isso trava a visualização quando o app fica aberto sem uso, mas não substitui um login de verdade.' : 'Digite a senha para continuar.'}
+    </p>
+    <div id="lock-error" style="display:none;background:#FBEAE9;color:#B3261E;padding:8px;border-radius:8px;font-size:12px;margin-bottom:10px;"></div>
+    <input id="lock-input" type="password" placeholder="${isSetup?'Nova senha':'Senha'}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #E2E7EA;font-size:14px;box-sizing:border-box;margin-bottom:10px;" />
+    ${isSetup ? '<input id="lock-input2" type="password" placeholder="Confirme a senha" style="width:100%;padding:10px;border-radius:8px;border:1px solid #E2E7EA;font-size:14px;box-sizing:border-box;margin-bottom:10px;" />' : ''}
+    <button id="lock-btn" style="width:100%;padding:10px;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #0F6E6E;background:#0F6E6E;color:#fff;cursor:pointer;">${isSetup?'Criar senha e entrar':'Entrar'}</button>
+    ${!isSetup ? '<button id="huddle-only-btn" style="width:100%;padding:10px;font-size:13px;font-weight:600;border-radius:8px;border:1px solid #E2E7EA;background:transparent;color:#647079;cursor:pointer;margin-top:10px;">🤝 Acessar somente o Safety Huddle (sem senha)</button>' : ''}
+  `;
+  app.appendChild(box);
+  const input1 = document.getElementById('lock-input');
+  const errBox = document.getElementById('lock-error');
+  const doUnlock = ()=>{
+    if(isSetup){
+      const input2 = document.getElementById('lock-input2');
+      if(!input1.value || input1.value.length<3){ errBox.textContent='A senha deve ter pelo menos 3 caracteres.'; errBox.style.display='block'; return; }
+      if(input1.value !== input2.value){ errBox.textContent='As senhas não coincidem.'; errBox.style.display='block'; return; }
+      try{ localStorage.setItem(LOCK_LS_KEY, input1.value); }catch(e){}
+    } else {
+      let saved = null;
+      try{ saved = localStorage.getItem(LOCK_LS_KEY); }catch(e){}
+      if(input1.value !== saved){ errBox.textContent='Senha incorreta.'; errBox.style.display='block'; input1.value=''; input1.focus(); return; }
+    }
+    try{ sessionStorage.setItem(LOCK_SS_KEY, '1'); sessionStorage.removeItem(HUDDLE_ONLY_SS_KEY); }catch(e){}
+    attachInactivityListeners();
+    resetInactivityTimer();
+    boot();
+  };
+  document.getElementById('lock-btn').addEventListener('click', doUnlock);
+  input1.addEventListener('keydown', e=>{ if(e.key==='Enter') doUnlock(); });
+  const huddleBtn = document.getElementById('huddle-only-btn');
+  if(huddleBtn){
+    huddleBtn.addEventListener('click', ()=>{
+      try{ sessionStorage.setItem(HUDDLE_ONLY_SS_KEY, '1'); }catch(e){}
+      attachInactivityListeners();
+      resetInactivityTimer();
+      boot();
+    });
+  }
+  input1.focus();
+}
+
+async function boot(){
+  if(!firebaseReady){
+    let saved = null;
+    try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
+    if(saved){
+      try{ initFirebase(JSON.parse(saved)); }
+      catch(e){ showConfigScreen('A configuração salva neste navegador parece inválida. Cole novamente abaixo.'); return; }
+    } else {
+      showConfigScreen();
+      return;
+    }
+  }
+  if(!isUnlocked() && !isHuddleOnly()){
+    showLockScreen();
+    return;
+  }
+  attachInactivityListeners();
+  resetInactivityTimer();
+  try{
+    // Se o Firebase não responder em 8s (config errada, projeto bloqueado, sem internet), mostra aviso.
+    const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('timeout')), 8000));
+    await Promise.race([loadUnits(), timeout]);
+    loadIntegrationConfig(); // não bloqueia a tela — carrega em segundo plano
+    render();
+    await Promise.race([loadAllPatients(), timeout]);
+  }catch(e){
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+    const box = el('div',{style:'max-width:640px;margin:60px auto;background:#fff;border:2px solid var(--amber);border-radius:14px;padding:24px;'});
+    box.appendChild(el('h1',{style:'font-size:17px;margin:0 0 10px;'},['⚠️ Não consegui conectar ao Firebase']));
+    box.appendChild(el('p',{style:'color:var(--muted);line-height:1.6;'},[
+      'O app carregou, mas não recebeu resposta do banco de dados a tempo. Causas mais comuns: (1) o Firestore Database ainda não foi criado no console do Firebase; (2) as regras de segurança do Firestore estão bloqueando o acesso; (3) sem conexão com a internet no momento.'
+    ]));
+    box.appendChild(el('button',{class:'primary', onclick:()=>location.reload()},['Tentar novamente']));
+    box.appendChild(el('button',{onclick:()=>{ try{localStorage.removeItem(LS_KEY);}catch(err){} location.reload(); }, style:'margin-left:8px;'},['Trocar configuração do Firebase']));
+    app.appendChild(box);
+  }
+}
+window.addEventListener('online', ()=>{ if(!state.loading && (isUnlocked()||isHuddleOnly())) render(); });
+window.addEventListener('offline', ()=>{ if(!state.loading && (isUnlocked()||isHuddleOnly())) render(); });
+boot();
+</script>
+</body>
+</html>
